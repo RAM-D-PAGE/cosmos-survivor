@@ -610,7 +610,7 @@ export class SkillSystem {
 
                 case 'doom_vortex':
                     // Dark swirling vortex
-                    const time = Date.now() / 100;
+                    // time is already defined in outer scope
                     const r = effect.radius || 180;
 
                     // Outer glow
