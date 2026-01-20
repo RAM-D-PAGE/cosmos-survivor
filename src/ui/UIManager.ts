@@ -882,8 +882,10 @@ export class UIManager {
             li.style.padding = '5px 0';
             li.style.fontSize = '18px';
 
-            const color = (CONFIG.DIFFICULTY as any)[s.difficulty]?.color || '#fff';
-            li.innerHTML = `<b>${i + 1}. ${s.name}</b> <span style="color:${color}">[${s.difficulty || 'NORMAL'}]</span> - ${s.score} <span style="font-size:12px; color:#888">(LVL ${s.level})</span>`;
+            const diffConfig = (CONFIG.DIFFICULTY as any)[s.difficulty];
+            const diffName = diffConfig?.name || s.difficulty || 'ปกติ';
+            const color = diffConfig?.color || '#fff';
+            li.innerHTML = `<b>${i + 1}. ${s.name}</b> <span style="color:${color}">[${diffName}]</span> - ${s.score} <span style="font-size:12px; color:#888">(LVL ${s.level})</span>`;
             list.appendChild(li);
         });
 
