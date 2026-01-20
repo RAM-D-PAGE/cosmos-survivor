@@ -28,7 +28,8 @@ export class LeaderboardSystem {
                         {
                             name: scoreData.name,
                             score: scoreData.score,
-                            level: scoreData.level
+                            level: scoreData.level,
+                            difficulty: scoreData.difficulty
                         }
                     ]);
 
