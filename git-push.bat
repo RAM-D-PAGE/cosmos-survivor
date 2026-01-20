@@ -15,7 +15,7 @@ git add .
 
 echo.
 echo [3/4] Creating commit...
-set /p COMMIT_MSG="Enter commit message: "
+set /p COMMIT_MSG="Enter commit message : "
 git commit -m "%COMMIT_MSG%"
 
 echo.
