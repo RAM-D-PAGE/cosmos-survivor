@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmos Survivor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+
+        <!-- UI Overlay -->
+        <div id="ui-layer">
+            <!-- Main Menu -->
+            <div id="main-menu" class="glass-panel center-screen">
+                <h1>COSMOS SURVIVOR</h1>
+                <p>เอาชีวิตรอดในความว่างเปล่าอันไร้ที่สิ้นสุด</p>
+                <div class="menu-buttons">
+                    <button id="start-btn" class="glow-btn" data-locale="play">PLAY</button>
+                    <button id="open-leaderboard-btn" class="glow-btn"
+                        style="margin-top:10px; border-color:#ff00ea; color:#ff00ea"
+                        data-locale="leaderboard">LEADERBOARD</button>
+                    <button id="open-settings-btn" class="glow-btn"
+                        style="margin-top:10px; border-color:#00ff88; color:#00ff88"
+                        data-locale="settings">SETTINGS</button>
+                </div>
+                <div class="controls-hint">
+                    <p>WASD เคลื่อนที่ | เมาส์เล็ง | คลิกยิง | SPACE แดช | TAB หยุด</p>
+                </div>
+            </div>
+
+
+            <div id="leaderboard" class="hidden glass-panel center-screen">
+                <h2 data-locale="leaderboard">ตารางคะแนน</h2>
+                <ul id="score-list"></ul>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button id="leaderboard-restart-btn" class="glow-btn"
+                        style="display:none; flex:1;">เล่นอีกครั้ง</button>
+                    <button id="close-leaderboard-btn" class="glow-btn" data-locale="close" style="flex:1;">ปิด</button>
+                </div>
+            </div>
+
+            <!-- HUD (Default Hidden) -->
+            <div id="hud" class="hidden">
+                <!-- Top Right: Game Timer -->
+                <div id="game-timer">00:00</div>
+
+                <!-- Top Center: Zone Info & Buffs -->
+                <div id="zone-info-panel">
+                    <div id="current-zone-name">UNKNOWN SECTOR</div>
+                    <div id="active-buffs-container"></div>
+                </div>
+
+                <!-- Top Center: Zone Progress (Wave/Boss) -->
+                <div id="zone-progress-container">
+                    <div id="zone-progress-label">ZONE PROGRESS</div>
+                    <div id="zone-progress-bar"></div>
+                </div>
+
+                <!-- Top Left: Player Status (HP/Energy) -->
+                <div id="status-bars">
+                    <div id="hp-bar-container">
+                        <div id="hp-bar-fill"></div>
+                        <span id="hp-text">100 / 100</span>
+                    </div>
+                    <div id="energy-bar-container">
+                        <div id="energy-bar-fill"></div>
+                        <!-- <span id="energy-text">100</span> -->
+                    </div>
+                </div>
+
+                <!-- Bottom Center: Inventory (Will be styled in CSS) -->
+                <div id="inventory-panel">
+                    <div class="inv-slot" id="slot-0"></div>
+                    <div class="inv-slot" id="slot-1"></div>
+                    <div class="inv-slot" id="slot-2"></div>
+                    <div class="inv-slot" id="slot-3"></div>
+                    <div class="inv-slot" id="slot-4"></div>
+                </div>
+
+                <!-- Bottom: EXP Bar -->
+                <div id="exp-bar-container">
+                    <div id="exp-bar-fill"></div>
+                    <span id="exp-text">LVL 1 - 0 / 100 XP</span>
+                </div>
+            </div>
+
+            <!-- Stats Panel -->
+
+
+            <!-- Upgrade Menu -->
+            <div id="upgrade-menu" class="glass-panel hidden">
+                <h2>System Upgrade Available</h2>
+                <div id="card-container">
+                    <!-- Cards injected by JS -->
+                </div>
+            </div>
+
+            <!-- Pause Button -->
+            <div id="pause-btn-container">
+                <button id="pause-btn">❚❚</button>
+            </div>
+
+            <!-- Skills/Pause Menu (Tab) -->
+            <div id="skills-menu" class="glass-panel center-screen hidden">
+                <h2 data-locale="paused">หยุดชั่วคราว</h2>
+                <div class="skills-content">
+                    <div class="column">
+                        <h3 id="ship-status-label">สถานะยาน</h3>
+                        <ul id="skills-list">
+                            <!-- List injected by JS -->
+                        </ul>
+                    </div>
+                </div>
+                <button id="resume-btn" class="glow-btn" data-locale="resume" style="margin-top: 20px;">เล่นต่อ</button>
+            </div>
+
+            <!-- Skill Management Panel -->
+            <div id="skill-manage-panel" class="glass-panel center-screen hidden">
+                <h2 data-locale="skillManagement">จัดการสกิล</h2>
+                <div id="skill-slots-manage">
+                    <div class="slot-manage" data-slot="0"><span>ช่อง 1:</span><span id="slot-0-skill">ว่าง</span>
+                    </div>
+                    <div class="slot-manage" data-slot="1"><span>ช่อง 2:</span><span id="slot-1-skill">ว่าง</span>
+                    </div>
+                    <div class="slot-manage" data-slot="2"><span>ช่อง 3:</span><span id="slot-2-skill">ว่าง</span>
+                    </div>
+                </div>
+                <p style="color:#888; font-size:12px; margin-top:10px;">ลากและวางเพื่อสลับสกิล</p>
+                <button id="close-skill-manage-btn" class="glow-btn" data-locale="close"
+                    style="margin-top: 20px;">ปิด</button>
+            </div>
+
+            <!-- Settings Panel -->
+            <div id="settings-panel" class="glass-panel center-screen hidden">
+                <h2 data-locale="settings">SETTINGS</h2>
+
+                <div class="settings-section">
+                    <label data-locale="language">Language</label>
+                    <div class="settings-row">
+                        <button id="lang-en-btn" class="setting-btn active">EN</button>
+                        <button id="lang-th-btn" class="setting-btn">TH</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <label data-locale="masterVolume">Master Volume</label>
+                    <div class="settings-row">
+                        <input type="range" id="master-volume" min="0" max="100" value="70" class="slider">
+                        <span id="master-volume-val">70%</span>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <label data-locale="sfxVolume">SFX Volume</label>
+                    <div class="settings-row">
+                        <input type="range" id="sfx-volume" min="0" max="100" value="80" class="slider">
+                        <span id="sfx-volume-val">80%</span>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <label data-locale="screenShake">Screen Shake</label>
+                    <div class="settings-row">
+                        <button id="shake-toggle-btn" class="setting-btn active">ON</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <label data-locale="damageNumbers">Damage Numbers</label>
+                    <div class="settings-row">
+                        <button id="dmg-numbers-toggle-btn" class="setting-btn active">ON</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <label data-locale="showFps">Show FPS</label>
+                    <div class="settings-row">
+                        <button id="fps-toggle-btn" class="setting-btn">OFF</button>
+                    </div>
+                </div>
+
+                <button id="close-settings-btn" class="glow-btn" style="margin-top: 20px;"
+                    data-locale="close">CLOSE</button>
+            </div>
+
+
+            <!-- Tooltip -->
+            <div id="tooltip" class="hidden"></div>
+
+            <!-- Dash Cooldown Indicator -->
+            <div id="dash-indicator" class="hidden">
+                <div id="dash-charges"></div>
+                <span id="dash-text">DASH</span>
+            </div>
+
+            <!-- Skill Bar (Bottom Right) - Hidden by default -->
+            <div id="skills-bar" class="hidden">
+                <div id="skill-0" class="skill-slot"></div>
+                <div id="skill-1" class="skill-slot"></div>
+                <div id="skill-2" class="skill-slot"></div>
+            </div>
+            <button id="manage-skills-btn" class="hidden">⚙ SKILLS</button>
+
+            <!-- Difficulty Selection (Main Menu) -->
+            <div id="difficulty-select" class="hidden">
+                <button class="diff-btn" data-diff="EASY">EASY</button>
+                <button class="diff-btn" data-diff="NORMAL">NORMAL</button>
+                <button class="diff-btn" data-diff="HARD">HARD</button>
+                <button class="diff-btn" data-diff="ABYSS">ABYSS</button>
+                <button class="diff-btn" data-diff="HELL">HELL</button>
+                <button class="diff-btn" data-diff="IMPOSSIBLE">IMPOSSIBLE</button>
+            </div>
+
+
+
+            <!-- Game Over Screen -->
+            <div id="game-over-screen" class="glass-panel center-screen hidden">
+                <h2>สัญญาณหาย</h2>
+                <p>ตัวเรือเสียหายหนัก</p>
+                <div id="final-score" style="margin: 20px; font-size: 24px; color: #00fff2;"></div>
+                <input type="text" id="player-name-input" placeholder="กรอกชื่อ" maxlength="10"
+                    style="padding: 10px; font-size: 18px; text-transform: uppercase;">
+                <button id="submit-score-btn" class="glow-btn" style="margin-top: 10px;">บันทึกคะแนน</button>
+                <button id="restart-btn" class="glow-btn">เริ่มใหม่</button>
+                <button id="quit-btn" class="glow-btn"
+                    style="margin-top: 10px; border-color: #ff0055; color: #ff0055;">ออกจากเกม</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Module -->
+    <script type="module" src="src/main.ts"></script>
+</body>
+
+</html>
