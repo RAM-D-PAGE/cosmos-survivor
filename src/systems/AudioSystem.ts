@@ -1,12 +1,22 @@
 export class AudioSystem {
     public ctx: AudioContext;
     private masterVolume: number;
+    private sfxVolume: number;
     public enabled: boolean;
 
     constructor() {
         this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
         this.masterVolume = 0.3;
+        this.sfxVolume = 1.0;
         this.enabled = true;
+    }
+
+    setMasterVolume(value: number): void {
+        this.masterVolume = Math.max(0, Math.min(1, value));
+    }
+
+    setSfxVolume(value: number): void {
+        this.sfxVolume = Math.max(0, Math.min(1, value));
     }
 
     playShoot(): void {
@@ -21,7 +31,7 @@ export class AudioSystem {
         osc.frequency.setValueAtTime(400, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
 
-        gain.gain.setValueAtTime(this.masterVolume * 0.5, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume * 0.5, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
 
         osc.start();
@@ -40,7 +50,7 @@ export class AudioSystem {
         osc.frequency.setValueAtTime(600, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.2);
 
-        gain.gain.setValueAtTime(this.masterVolume * 0.4, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume * 0.4, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
 
         osc.start();
@@ -59,7 +69,7 @@ export class AudioSystem {
         osc.frequency.setValueAtTime(150, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.1);
 
-        gain.gain.setValueAtTime(this.masterVolume * 0.5, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume * 0.5, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
 
         osc.start();
@@ -84,7 +94,7 @@ export class AudioSystem {
         noise.connect(gain);
         gain.connect(this.ctx.destination);
 
-        gain.gain.setValueAtTime(this.masterVolume, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
 
         noise.start();
@@ -103,7 +113,7 @@ export class AudioSystem {
         osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.1);
         osc.frequency.setValueAtTime(1000, this.ctx.currentTime + 0.2);
 
-        gain.gain.setValueAtTime(this.masterVolume, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.6);
 
         osc.start();
@@ -122,7 +132,7 @@ export class AudioSystem {
         osc.frequency.setValueAtTime(800, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.1);
 
-        gain.gain.setValueAtTime(this.masterVolume * 0.3, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume * 0.3, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
 
         osc.start();
@@ -141,7 +151,7 @@ export class AudioSystem {
         osc.frequency.setValueAtTime(600, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.05);
 
-        gain.gain.setValueAtTime(this.masterVolume * 0.4, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume * 0.4, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
 
         osc.start();
@@ -161,7 +171,7 @@ export class AudioSystem {
         osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.15);
         osc.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.3);
 
-        gain.gain.setValueAtTime(this.masterVolume * 0.5, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume * 0.5, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
 
         osc.start();
@@ -185,7 +195,7 @@ export class AudioSystem {
         osc1.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.5);
         osc2.frequency.exponentialRampToValueAtTime(900, this.ctx.currentTime + 0.5);
 
-        gain.gain.setValueAtTime(this.masterVolume * 0.4, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume * 0.4, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
 
         osc1.start();
@@ -206,7 +216,7 @@ export class AudioSystem {
         osc.frequency.setValueAtTime(1000, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.4);
 
-        gain.gain.setValueAtTime(this.masterVolume * 0.3, this.ctx.currentTime);
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume * 0.3, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
 
         osc.start();

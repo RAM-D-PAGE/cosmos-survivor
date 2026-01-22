@@ -1,3 +1,5 @@
+import { SUPABASE_CONFIG } from './Env';
+
 export interface Difficulty {
     name: string;
     mult: number;
@@ -73,6 +75,7 @@ export const CONFIG = {
         ENEMY_SPAWN_INTERVAL: 2.0,
         MAX_WEAPONS: 10
     },
+    SUPABASE: SUPABASE_CONFIG,
     DIFFICULTY: {
         EASY: { name: 'ง่าย', mult: 1.0, color: '#00ff00', spawnRate: 1.5, expMult: 1.0 },
         NORMAL: { name: 'ปกติ', mult: 1.5, color: '#ffffff', spawnRate: 1.0, expMult: 0.8 },

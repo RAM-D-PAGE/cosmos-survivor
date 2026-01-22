@@ -37,52 +37,66 @@ export class CardSystem {
             DAMAGE_UP: {
                 id: 'DAMAGE_UP',
                 name: 'Power Core',
+                nameTH: 'แกนพลังงาน',
                 category: 'OFFENSIVE',
                 description: 'Increases projectile damage.',
-                baseValue: 5,
+                descriptionTH: 'เพิ่มความเสียหายกระสุน',
+                baseValue: 10,
                 unit: ' DMG',
                 weight: 1.0,
                 maxStacks: 10,
                 apply: (game, value) => { game.player.damage += value; }
             },
+
             FIRE_RATE_UP: {
                 id: 'FIRE_RATE_UP',
                 name: 'Rapid Fire Module',
+                nameTH: 'โมดูลยิงรัว',
                 category: 'OFFENSIVE',
                 description: 'Increases firing speed.',
+                descriptionTH: 'เพิ่มความเร็วในการยิง',
                 baseValue: 0.5,
                 unit: ' shots/s',
                 weight: 0.8,
                 maxStacks: 8,
                 apply: (game, value) => { game.player.baseFireRate += value; }
             },
+
             MULTISHOT: {
                 id: 'MULTISHOT',
                 name: 'Multishot Array',
+                nameTH: 'ระบบยิงหลายทิศทาง',
                 category: 'OFFENSIVE',
                 description: 'Fire additional projectiles.',
+                descriptionTH: 'ยิงกระสุนเพิ่มเติม',
                 baseValue: 1,
                 unit: ' projectile',
                 weight: 0.15,
                 maxStacks: 5,
                 apply: (game, value) => { game.player.projectileCount += value; }
             },
+
             PROJECTILE_SPEED: {
                 id: 'PROJECTILE_SPEED',
                 name: 'Accelerator',
+                nameTH: 'เครื่องเร่งความเร็ว',
                 category: 'OFFENSIVE',
                 description: 'Faster projectiles.',
+                descriptionTH: 'เพิ่มความเร็วกระสุน',
                 baseValue: 50,
                 unit: '',
                 weight: 0.6,
                 maxStacks: 8,
                 apply: (game, value) => { game.player.projectileSpeed += value; }
             },
+
             CRITICAL_STRIKE: {
                 id: 'CRITICAL_STRIKE',
                 name: 'Critical Module',
+                nameTH: 'โมดูลคริติคอล',
                 category: 'OFFENSIVE',
                 description: 'Chance for 2x damage.',
+                descriptionTH: 'เพิ่มโอกาสสร้างความเสียหาย 2 เท่า',
                 baseValue: 5,
                 unit: '% crit',
                 weight: 0.4,
@@ -91,11 +105,14 @@ export class CardSystem {
                     game.player.critChance = (game.player.critChance || 0) + value / 100;
                 }
             },
+
             PIERCING: {
                 id: 'PIERCING',
                 name: 'Piercing Rounds',
+                nameTH: 'กระสุนเจาะเกราะ',
                 category: 'OFFENSIVE',
                 description: 'Projectiles pass through enemies.',
+                descriptionTH: 'กระสุนทะลุศัตรู',
                 baseValue: 1,
                 unit: ' pierce',
                 weight: 0.2,
@@ -104,11 +121,14 @@ export class CardSystem {
                     game.player.piercing = (game.player.piercing || 0) + value;
                 }
             },
+
             CHAIN_LIGHTNING: {
                 id: 'CHAIN_LIGHTNING',
                 name: 'Chain Lightning',
+                nameTH: 'สายฟ้าลูกโซ่',
                 category: 'OFFENSIVE',
                 description: 'Damage chains to nearby enemies.',
+                descriptionTH: 'ความเสียหายชิ่งไปยังศัตรูใกล้เคียง',
                 baseValue: 2,
                 unit: ' chains',
                 weight: 0.15,
@@ -117,11 +137,14 @@ export class CardSystem {
                     game.player.chainCount = (game.player.chainCount || 0) + value;
                 }
             },
+
             RICOCHET: {
                 id: 'RICOCHET',
                 name: 'Ricochet',
+                nameTH: 'กระสุนชิ่ง',
                 category: 'OFFENSIVE',
                 description: 'Projectiles bounce to new targets.',
+                descriptionTH: 'กระสุนเด้งหาเป้าหมายใหม่',
                 baseValue: 1,
                 unit: ' bounce',
                 weight: 0.2,
@@ -130,11 +153,14 @@ export class CardSystem {
                     game.player.ricochet = (game.player.ricochet || 0) + value;
                 }
             },
+
             LIFE_STEAL: {
                 id: 'LIFE_STEAL',
                 name: 'Vampirism Module',
+                nameTH: 'ดูดเลือด',
                 category: 'OFFENSIVE',
                 description: 'Heal a percentage of damage dealt.',
+                descriptionTH: 'ฟื้นฟูเลือดจากความเสียหายที่ทำได้',
                 baseValue: 3,
                 unit: '% lifesteal',
                 weight: 0.1, // Rare
@@ -143,11 +169,14 @@ export class CardSystem {
                     game.player.lifeSteal = (game.player.lifeSteal || 0) + value / 100;
                 }
             },
+
             BERSERKER: {
                 id: 'BERSERKER',
                 name: 'Berserker Mode',
+                nameTH: 'โหมดบ้าคลั่ง',
                 category: 'OFFENSIVE',
                 description: '+50% damage when below 30% HP.',
+                descriptionTH: 'ดาเมจ +50% เมื่อ HP ต่ำกว่า 30%',
                 baseValue: 50,
                 unit: '% dmg bonus',
                 weight: 0.15,
@@ -157,11 +186,14 @@ export class CardSystem {
                     game.player.berserkerBonus = value / 100;
                 }
             },
+
             RAM_DAMAGE: {
                 id: 'RAM_DAMAGE',
                 name: 'Spiked Hull',
+                nameTH: 'เกราะหนาม',
                 category: 'OFFENSIVE',
                 description: 'Deal damage when colliding with enemies.',
+                descriptionTH: 'สร้างความเสียหายเมื่อชนศัตรู',
                 baseValue: 50,
                 unit: ' damage',
                 weight: 0.2,
@@ -171,12 +203,15 @@ export class CardSystem {
                 }
             },
 
+
             // === DEFENSIVE CARDS ===
             MAX_HP_UP: {
                 id: 'MAX_HP_UP',
                 name: 'Hull Plating',
+                nameTH: 'แผ่นเกราะเสริม',
                 category: 'DEFENSIVE',
                 description: 'Increases max HP.',
+                descriptionTH: 'เพิ่มพลังชีวิตสูงสุด',
                 baseValue: 20,
                 unit: ' HP',
                 weight: 0.7,
@@ -186,22 +221,28 @@ export class CardSystem {
                     game.player.hp += value;
                 }
             },
+
             HP_REGEN: {
                 id: 'HP_REGEN',
                 name: 'Nanofiber Repair',
+                nameTH: 'เส้นใยซ่อมแซม',
                 category: 'DEFENSIVE',
                 description: 'Passively regenerate HP.',
-                baseValue: 1,
+                descriptionTH: 'ฟื้นฟู HP อัตโนมัติ',
+                baseValue: 2,
                 unit: ' HP/s',
                 weight: 0.5,
                 maxStacks: 8,
                 apply: (game, value) => { game.player.hpRegen += value; }
             },
+
             ARMOR: {
                 id: 'ARMOR',
                 name: 'Armor Plating',
+                nameTH: 'แผ่นเกราะกันกระสุน',
                 category: 'DEFENSIVE',
                 description: 'Reduce damage taken.',
+                descriptionTH: 'ลดความเสียหายที่ได้รับ',
                 baseValue: 10,
                 unit: '% reduction',
                 weight: 0.4,
@@ -210,11 +251,14 @@ export class CardSystem {
                     game.player.armor = (game.player.armor || 0) + value / 100;
                 }
             },
+
             SHIELD_GEN: {
                 id: 'SHIELD_GEN',
                 name: 'Shield Generator',
+                nameTH: 'เครื่องสร้างโล่',
                 category: 'DEFENSIVE',
                 description: 'Absorbs one hit every 10 seconds.',
+                descriptionTH: 'ป้องกันความเสียหาย 1 ครั้ง ทุก 10 วินาที',
                 baseValue: 1,
                 unit: ' shield',
                 weight: 0.2,
@@ -224,11 +268,14 @@ export class CardSystem {
                     game.player.shieldCooldown = 10;
                 }
             },
+
             SECOND_WIND: {
                 id: 'SECOND_WIND',
                 name: 'Second Wind',
+                nameTH: 'ลมหายใจเฮือกสุดท้าย',
                 category: 'DEFENSIVE',
                 description: 'Revive once with 30% HP.',
+                descriptionTH: 'ฟื้นคืนชีพ 1 ครั้งด้วย HP 30%',
                 baseValue: 30,
                 unit: '% revive HP',
                 weight: 0.1,
@@ -239,23 +286,29 @@ export class CardSystem {
                 }
             },
 
+
             // === MOBILITY CARDS ===
             SPEED_UP: {
                 id: 'SPEED_UP',
                 name: 'Turbo Engine',
+                nameTH: 'เครื่องยนต์เทอร์โบ',
                 category: 'MOBILITY',
                 description: 'Increases movement speed.',
-                baseValue: 30,
+                descriptionTH: 'เพิ่มความเร็วในการเคลื่อนที่',
+                baseValue: 40,
                 unit: '',
                 weight: 0.6,
                 maxStacks: 8,
                 apply: (game, value) => { game.player.maxSpeed += value; }
             },
+
             DASH_COUNT: {
                 id: 'DASH_COUNT',
                 name: 'Dash Capacitor',
+                nameTH: 'ตัวเก็บประจุแดช',
                 category: 'MOBILITY',
                 description: 'Additional dash charge.',
+                descriptionTH: 'เพิ่มจำนวนการแดช',
                 baseValue: 1,
                 unit: ' dash',
                 weight: 0.2,
@@ -265,11 +318,14 @@ export class CardSystem {
                     game.player.dashCharges += value;
                 }
             },
+
             DASH_DISTANCE: {
                 id: 'DASH_DISTANCE',
                 name: 'Extended Thrusters',
+                nameTH: 'ไอพ่นระยะไกล',
                 category: 'MOBILITY',
                 description: 'Increases dash distance.',
+                descriptionTH: 'เพิ่มระยะทางแดช',
                 baseValue: 25,
                 unit: '% distance',
                 weight: 0.3,
@@ -278,11 +334,14 @@ export class CardSystem {
                     game.player.dashSpeed += game.player.dashSpeed * (value / 100);
                 }
             },
+
             DASH_COOLDOWN: {
                 id: 'DASH_COOLDOWN',
                 name: 'Quick Recovery',
+                nameTH: 'ฟื้นฟูฉับไว',
                 category: 'MOBILITY',
                 description: 'Reduces dash cooldown.',
+                descriptionTH: 'ลดเวลาคูลดาวน์แดช',
                 baseValue: 0.5,
                 unit: 's reduction',
                 weight: 0.4,
@@ -292,13 +351,34 @@ export class CardSystem {
                 }
             },
 
+            DASH_DEFENSE: {
+                id: 'DASH_DEFENSE',
+                name: 'Phase Shield',
+                nameTH: 'เกราะเฟส',
+                category: 'MOBILITY',
+                description: 'Gain armor after dashing for 3s.',
+                descriptionTH: 'ได้รับเกราะเพิ่มขึ้นหลังแดช 3 วินาที',
+                baseValue: 10,
+                unit: '% armor',
+                weight: 0.3,
+                maxStacks: 5,
+                apply: (game, value) => {
+                    game.player.dashArmorBonus = (game.player.dashArmorBonus || 0) + value / 100;
+                    game.player.hasDashDefense = true;
+                }
+            },
+
+
             // === UTILITY CARDS ===
             MAGNET: {
                 id: 'MAGNET',
                 name: 'Tractor Beam',
+                nameTH: 'ลำแสงดูดจับ',
                 category: 'UTILITY',
                 description: 'Increases pickup range.',
-                baseValue: 50,
+                descriptionTH: 'เพิ่มระยะการเก็บของ',
+
+                baseValue: 100,
                 unit: ' range',
                 weight: 0.5,
                 maxStacks: 6,
@@ -500,12 +580,34 @@ export class CardSystem {
         };
         const tier = tierMap[rarity.name] || 'I';
 
+        const isTH = this.game.ui?.currentLocale === 'TH';
+        const name = isTH && selectedCard.nameTH ? selectedCard.nameTH : selectedCard.name;
+        // Base description
+        let desc = isTH && selectedCard.descriptionTH ? selectedCard.descriptionTH : selectedCard.description;
+
+        // Append explicit value to description
+        // e.g. "Increases projectile damage." -> "Increases projectile damage. <br> (+12 DMG)"
+        if (selectedCard.category !== 'CONSUMABLE' && value > 0) {
+            const color = '#00ff00';
+            desc += `<br><span style="color:${color}">(+${value}${selectedCard.unit})</span>`;
+        } else if (selectedCard.category === 'CONSUMABLE') {
+            const color = '#00f0ff';
+            // Consumables usually have fixed descriptions, but we can append value if dynamic
+            // e.g. "Heal 50% HP" -> "Heal 50% HP (+500 HP)" if we wanted, but let's stick to unit for now
+            desc += `<br><span style="color:${color}">(Action: ${value}${selectedCard.unit})</span>`;
+        }
+
         return {
             ...selectedCard,
             rarity: rarity,
             value: value,
             tier: tier,
-            displayName: `${rarity.name} ${selectedCard.name} [Tier ${tier}]`,
+            // Combined display name
+            displayName: `${rarity.name} ${name} [Tier ${tier}]`,
+            // Store localized properties for UI to use raw if needed
+            nameDisplay: name,
+            descriptionDisplay: desc,
+            description: desc, // Ensure UI uses dynamic description
             apply: (game: any) => {
                 selectedCard.apply(game, value);
 
@@ -515,7 +617,7 @@ export class CardSystem {
 
                 // Log to upgrade history
                 game.acquiredUpgrades.push({
-                    name: `${rarity.name} ${selectedCard.name} [Tier ${tier}]`,
+                    name: `${rarity.name} ${name} [Tier ${tier}]`,
                     color: rarity.color
                 });
             }

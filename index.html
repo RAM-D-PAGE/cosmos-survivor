@@ -30,6 +30,14 @@
                     <button id="open-settings-btn" class="glow-btn"
                         style="margin-top:10px; border-color:#00ff88; color:#00ff88"
                         data-locale="settings">SETTINGS</button>
+
+                    <!-- Auth Buttons -->
+                    <button id="login-btn" class="glow-btn"
+                        style="margin-top:20px; border-color:#ffff00; color:#ffff00">LOGIN</button>
+                    <button id="logout-btn" class="glow-btn hidden"
+                        style="margin-top:20px; border-color:#ff5555; color:#ff5555">LOGOUT</button>
+                    <button id="link-tiktok-btn" class="glow-btn hidden"
+                        style="margin-top:10px; border-color:#00ffff; color:#00ffff">LINK TIKTOK</button>
                 </div>
                 <div class="controls-hint">
                     <p>WASD เคลื่อนที่ | เมาส์เล็ง | คลิกยิง | SPACE แดช | TAB หยุด</p>
@@ -70,9 +78,12 @@
                         <div id="hp-bar-fill"></div>
                         <span id="hp-text">100 / 100</span>
                     </div>
-                    <div id="energy-bar-container">
+                    <div id="energy-bar-container" style="margin-top:5px;">
                         <div id="energy-bar-fill"></div>
                         <!-- <span id="energy-text">100</span> -->
+                    </div>
+                    <div style="margin-top:5px; font-weight:bold; color:#ffd700; text-shadow:0 0 5px #000;">
+                        💰 <span id="coin-display">0</span>
                     </div>
                 </div>
 
@@ -120,6 +131,8 @@
                     </div>
                 </div>
                 <button id="resume-btn" class="glow-btn" data-locale="resume" style="margin-top: 20px;">เล่นต่อ</button>
+                <button id="pause-settings-btn" class="glow-btn" data-locale="settings"
+                    style="margin-top: 10px; border-color:#00ff88; color:#00ff88">ตั้งค่า</button>
             </div>
 
             <!-- Skill Management Panel -->
@@ -187,6 +200,13 @@
                     </div>
                 </div>
 
+                <div class="settings-section">
+                    <label>Resume Delay</label>
+                    <div class="settings-row">
+                        <button id="delay-toggle-btn" class="setting-btn active">ON</button>
+                    </div>
+                </div>
+
                 <button id="close-settings-btn" class="glow-btn" style="margin-top: 20px;"
                     data-locale="close">CLOSE</button>
             </div>
@@ -219,6 +239,41 @@
                 <button class="diff-btn" data-diff="IMPOSSIBLE">IMPOSSIBLE</button>
             </div>
 
+            <!-- Skill Management Panel -->
+            <div id="skill-manage-panel" class="hidden glass-panel center-screen">
+                <h2 data-locale="skillManagement">SKILL MANAGEMENT</h2>
+                <div class="skill-slots-container">
+                    <!-- Active Skills -->
+                    <h3>Active Skills</h3>
+                    <div style="display:flex; justify-content:center; gap:20px; margin-bottom:20px;">
+                        <div class="slot-manage" data-slot="0">
+                            <div id="slot-0-skill">Empty</div>
+                            <div class="slot-label">KEY 1</div>
+                        </div>
+                        <div class="slot-manage" data-slot="1">
+                            <div id="slot-1-skill">Empty</div>
+                            <div class="slot-label">KEY 2</div>
+                        </div>
+                        <div class="slot-manage" data-slot="2">
+                            <div id="slot-2-skill">Empty</div>
+                            <div class="slot-label">KEY 3</div>
+                        </div>
+                    </div>
+
+                    <!-- Bag Skills -->
+                    <h3>Skill Bag (Drag to Swap)</h3>
+                    <div id="skill-bag-grid"
+                        style="display:flex; justify-content:center; flex-wrap:wrap; gap:10px; min-height:100px; padding:10px; background:rgba(0,0,0,0.3); border-radius:10px;">
+                        <!-- Bag slots will be generated here -->
+                    </div>
+                </div>
+                <div style="margin-top:20px; font-size:14px; color:#aaa;">
+                    Click two slots to swap skills
+                </div>
+                <button id="close-skill-manage-btn" class="glow-btn" style="margin-top:20px;"
+                    data-locale="close">CLOSE</button>
+            </div>
+
 
 
             <!-- Game Over Screen -->
@@ -233,6 +288,35 @@
                 <button id="quit-btn" class="glow-btn"
                     style="margin-top: 10px; border-color: #ff0055; color: #ff0055;">ออกจากเกม</button>
             </div>
+            <!-- Login Modal -->
+            <div id="login-modal" class="glass-panel center-screen hidden">
+                <h2>PILOT AUTHENTICATION</h2>
+                <div style="display:flex; flex-direction:column; gap:10px; margin:20px 0;">
+                    <input type="email" id="login-username-input" placeholder="EMAIL" maxlength="50"
+                        style="padding: 10px; font-size: 18px;">
+                    <input type="password" id="login-password-input" placeholder="PASSWORD" maxlength="20"
+                        style="padding: 10px; font-size: 18px;">
+                </div>
+                <div id="login-msg" style="color:red; margin-bottom:10px; height:20px;"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="confirm-login-btn" class="glow-btn"
+                        style="border-color:#00ff00; color:#00ff00; flex:1;">LOGIN</button>
+                    <button id="register-btn" class="glow-btn"
+                        style="border-color:#00ccff; color:#00ccff; flex:1;">REGISTER</button>
+                </div>
+                <!-- Google Login -->
+                <button id="google-login-btn" class="glow-btn"
+                    style="margin-top: 10px; border-color:#ffffff; color:#ffffff;">
+                    LOG IN WITH GOOGLE
+                </button>
+                <button id="cancel-login-btn" class="glow-btn" style="margin-top: 10px;">CANCEL</button>
+            </div>
+
+            <!-- User Display (Top Left of Menu) -->
+            <div id="user-display" class="hidden"
+                style="position:absolute; top:20px; right:20px; font-size:20px; color:#00ff00; text-shadow:0 0 10px #00ff00; font-weight:bold;">
+            </div>
+
         </div>
     </div>
 

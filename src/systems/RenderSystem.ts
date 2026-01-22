@@ -356,5 +356,82 @@ export class RenderSystem {
         this.ctx.beginPath();
         this.ctx.arc(mouse.x, mouse.y, 10, 0, Math.PI * 2);
         this.ctx.stroke();
+
+        this.drawBossIndicators();
+    }
+
+    drawBossIndicators(): void {
+        const padding = 50;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const camera = this.game.camera;
+        const player = this.game.player;
+
+        this.game.enemies.forEach((enemy: any) => {
+            if (!enemy.isElite) return; // Only show for Elites/Bosses
+
+            // Check if off-screen
+            const screenX = enemy.x - camera.x;
+            const screenY = enemy.y - camera.y;
+
+            const isOffScreen = screenX < -enemy.radius || screenX > width + enemy.radius ||
+                screenY < -enemy.radius || screenY > height + enemy.radius;
+
+            if (isOffScreen) {
+                // Calculate angle from center of screen (player position effectively relative to camera) to enemy
+                // Actually better: Angle from center of screen to (screenX, screenY)
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const dx = screenX - centerX;
+                const dy = screenY - centerY;
+                const angle = Math.atan2(dy, dx);
+
+                // Clamp to screen edge
+                // Slope
+                const m = dy / dx;
+
+                let indicatorX, indicatorY;
+
+                if (Math.abs(dx) * height > Math.abs(dy) * width) {
+                    // Intersects vertical edges
+                    if (dx > 0) {
+                        indicatorX = width - padding;
+                    } else {
+                        indicatorX = padding;
+                    }
+                    indicatorY = centerY + (indicatorX - centerX) * m;
+                } else {
+                    // Intersects horizontal edges
+                    if (dy > 0) {
+                        indicatorY = height - padding;
+                    } else {
+                        indicatorY = padding;
+                    }
+                    indicatorX = centerX + (indicatorY - centerY) / m;
+                }
+
+                // Draw Arrow
+                this.ctx.save();
+                this.ctx.translate(indicatorX, indicatorY);
+                this.ctx.rotate(angle);
+
+                this.ctx.fillStyle = enemy.color;
+                this.ctx.beginPath();
+                this.ctx.moveTo(10, 0);
+                this.ctx.lineTo(-10, 10);
+                this.ctx.lineTo(-10, -10);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                // "BOSS" text
+                this.ctx.rotate(-angle); // Reset rotation for text
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = 'bold 12px Rajdhani';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText("BOSS", 0, 20);
+
+                this.ctx.restore();
+            }
+        });
     }
 }

@@ -12,6 +12,8 @@ import { MapSystem } from '../systems/MapSystem';
 import { WeaponSystem } from '../systems/WeaponSystem';
 import { SkillSystem } from '../systems/SkillSystem';
 import { LeaderboardSystem } from '../systems/LeaderboardSystem';
+import { LoginSystem } from '../systems/LoginSystem';
+import { CardSystem } from '../systems/CardSystem'; // Ensure this is here
 import { CONFIG } from './Config';
 import { EventManager } from './EventManager';
 import { RenderSystem } from '../systems/RenderSystem';
@@ -32,6 +34,8 @@ export class Game {
     public weaponSystem: WeaponSystem;
     public skillSystem: SkillSystem;
     public leaderboardSystem: LeaderboardSystem;
+    public loginSystem: LoginSystem;
+    public cardSystem: CardSystem;
 
     public difficulty: string = 'NORMAL';
     public difficultyMult: number = 1.5;
@@ -53,6 +57,7 @@ export class Game {
     public enemySpawnInterval: number;
 
     public exp: number = 0;
+    public coins: number = 0;
     public level: number = 1;
     public expToNextLevel: number = 100;
     public isPaused: boolean = true;
@@ -72,6 +77,7 @@ export class Game {
     public screenShakeEnabled: boolean = true;
     public damageNumbersEnabled: boolean = true;
     public showFps: boolean = false;
+    public resumeCountdownEnabled: boolean = true;
 
     // FPS Tracking
     private fpsLastTime: number = 0;
@@ -96,16 +102,21 @@ export class Game {
 
         this.events = new EventManager();
         this.renderSystem = new RenderSystem(this);
-        this.ui = new UIManager(this);
         this.audio = new AudioSystem();
         this.upgradeSystem = new UpgradeSystem(this);
         this.mapSystem = new MapSystem(this);
         this.weaponSystem = new WeaponSystem(this);
         this.skillSystem = new SkillSystem(this);
+        console.log("[GAME] Systems part 1 loaded");
+
         this.leaderboardSystem = new LeaderboardSystem(this);
+        this.cardSystem = new CardSystem(this);
+        this.loginSystem = new LoginSystem(this);
 
         this.backgroundSystem = new BackgroundSystem(this);
         this.player = new Player(this);
+
+        this.ui = new UIManager(this);
 
         this.projectilePool = new ObjectPool<Projectile>(() => new Projectile(0, 0, 0, 0, 0), 100);
         this.particlePool = new ObjectPool<Particle>(() => new Particle(0, 0, '#fff'), 100);
@@ -200,6 +211,8 @@ export class Game {
         this.skillSystem.reset();
         this.difficultyMultiplier = 0; // Reset enemy scaling
 
+        this.coins = 0; // Reset Economy
+
         // Center camera on player
         this.camera.x = this.player.x - this.canvas.width / 2;
         this.camera.y = this.player.y - this.canvas.height / 2;
@@ -271,13 +284,40 @@ export class Game {
             this.ui.update(deltaTime);
         }
 
+        // Input update at end of frame
+        this.input.update();
         requestAnimationFrame(this.loop);
     }
 
+    public cameraMode: 'LOCKED' | 'DYNAMIC' = 'DYNAMIC';
+
     update(dt: number): void {
-        // 25% margin - player stays more centered, better visibility
-        const marginX = this.canvas.width * 0.25;
-        const marginY = this.canvas.height * 0.25;
+        const input = this.input;
+
+        // Toggle Camera Mode (Left Shift)
+        if (input.isKeyJustPressed('ShiftLeft')) {
+            this.cameraMode = this.cameraMode === 'LOCKED' ? 'DYNAMIC' : 'LOCKED';
+            this.spawnFloatingText(this.player.x, this.player.y, `CAMERA: ${this.cameraMode}`, '#ffffff');
+        }
+
+        // Camera Logic
+        if (this.cameraMode === 'LOCKED') {
+            this.camera.x = this.player.x - this.canvas.width / 2;
+            this.camera.y = this.player.y - this.canvas.height / 2;
+        } else {
+            // Dynamic (Existing Logic)
+            const marginX = this.canvas.width * 0.25;
+            const marginY = this.canvas.height * 0.25;
+
+            const screenX = this.player.x - this.camera.x;
+            const screenY = this.player.y - this.camera.y;
+
+            if (screenX < marginX) this.camera.x = this.player.x - marginX;
+            else if (screenX > this.canvas.width - marginX) this.camera.x = this.player.x - (this.canvas.width - marginX);
+
+            if (screenY < marginY) this.camera.y = this.player.y - marginY;
+            else if (screenY > this.canvas.height - marginY) this.camera.y = this.player.y - (this.canvas.height - marginY);
+        }
 
         if (this.shakeTimer > 0) {
             this.shakeTimer -= dt;
@@ -288,15 +328,6 @@ export class Game {
             this.shakeX = 0;
             this.shakeY = 0;
         }
-
-        const screenX = this.player.x - this.camera.x;
-        const screenY = this.player.y - this.camera.y;
-
-        if (screenX < marginX) this.camera.x = this.player.x - marginX;
-        else if (screenX > this.canvas.width - marginX) this.camera.x = this.player.x - (this.canvas.width - marginX);
-
-        if (screenY < marginY) this.camera.y = this.player.y - marginY;
-        else if (screenY > this.canvas.height - marginY) this.camera.y = this.player.y - (this.canvas.height - marginY);
 
         this.mapSystem.update(dt);
         this.player.update(dt);
@@ -339,6 +370,7 @@ export class Game {
         this.checkCollisions();
     }
 
+
     checkCollisions(): void {
         this.projectilePool.forEachActive(p => {
             if (p.markedForDeletion) return;
@@ -371,6 +403,10 @@ export class Game {
                         e.takeDamage(p.damage);
                         p.markedForDeletion = true;
                         this.spawnParticles(p.x, p.y, 3, '#ffaa00');
+
+                        // EXP on Hit
+                        const expGain = Math.max(1, Math.floor(p.damage * 0.1));
+                        this.addExp(expGain);
 
                         if (e.markedForDeletion) {
                             this.enemiesKilled++;
@@ -436,18 +472,67 @@ export class Game {
         this.showUpgradeMenu();
     }
 
-    showUpgradeMenu(): void {
+    showUpgradeMenu(choices?: any[]): void {
+        const finalChoices = choices || this.upgradeSystem.getChoices(3);
+        this.ui.showUpgradeMenu(finalChoices);
+    }
+
+    rerollUpgrades(): void {
         const choices = this.upgradeSystem.getChoices(3);
         this.ui.showUpgradeMenu(choices);
     }
 
     closeUpgradeMenu(): void {
         this.ui.closeUpgradeMenu();
-        this.isPaused = false;
 
+        // Check for consecutive level up
         if (this.exp >= this.expToNextLevel) {
             this.levelUp();
+            return;
         }
+
+        // Countdown Resume
+        if (!this.resumeCountdownEnabled) {
+            this.gameState = 'PLAYING';
+            this.isPaused = false;
+            return;
+        }
+
+        this.gameState = 'RESUMING';
+
+        let count = 3;
+        const countdownEl = document.createElement('div');
+        countdownEl.style.position = 'absolute';
+        countdownEl.style.top = '50%';
+        countdownEl.style.left = '50%';
+        countdownEl.style.transform = 'translate(-50%, -50%)';
+        countdownEl.style.fontSize = '80px';
+        countdownEl.style.fontFamily = 'Rajdhani, sans-serif';
+        countdownEl.style.color = '#fff';
+        countdownEl.style.textShadow = '0 0 20px #00f0ff';
+        countdownEl.style.zIndex = '2000';
+        countdownEl.innerText = count.toString();
+        document.body.appendChild(countdownEl);
+
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countdownEl.innerText = count.toString();
+                this.audio.playClick();
+            } else {
+                clearInterval(interval);
+                if (document.body.contains(countdownEl)) {
+                    document.body.removeChild(countdownEl);
+                }
+                this.gameState = 'PLAYING';
+                this.isPaused = false;
+
+                // Double check just in case (though we handled it above)
+                if (this.exp >= this.expToNextLevel) {
+                    this.levelUp();
+                }
+            }
+        }, 1000);
     }
 
     gameOver(): void {
@@ -579,6 +664,26 @@ export class Game {
         document.getElementById('upgrade-menu')?.classList.remove('hidden');
     }
 
+    unlockTikTokReward(): void {
+        // Exclusive Reward: "TikTok Pet" (Music Note Drone)
+        // Check if already has it
+        const hasPet = this.weaponSystem.activeWeapons.some((w: any) => w.config.name === 'TikTok Pet');
+        if (!hasPet) {
+            const petConfig = this.weaponSystem.createConfig(
+                'ORBITAL',
+                20, // High damage
+                0.5, // Fast fire
+                300,
+                '#00ffff', // Cyan/TikTok color ish
+                'TikTok Pet'
+            );
+            // Custom visual override could be handled in AutoWeapon if name === 'TikTok Pet'
+            this.weaponSystem.installWeapon(petConfig);
+            this.spawnFloatingText(this.player.x, this.player.y, "TIKTOK REWARD UNLOCKED!", '#00ffff');
+            this.audio.playLevelUp(); // Celebrate!
+        }
+    }
+
     spawnProjectile(x: number, y: number, angle: number, speed: number, damage: number, isEnemy: boolean = false): void {
         const p = this.projectilePool.get();
         p.reset(x, y, angle, speed, damage, isEnemy);
@@ -618,8 +723,34 @@ export class Game {
         this.enemies.push(enemy);
     }
 
+
     spawnGem(x: number, y: number, value: number): void {
         this.gems.push(new Gem(this, x, y, value));
+    }
+
+    // New: Spawn Coin
+    spawnCoin(x: number, y: number, value: number): void {
+        // Re-using Gem class for now, but maybe with a special type/color?
+        // For now, let's create a 'Coin' variant or just use specific value ranges.
+        // Let's assume Gem handles XP, we need a separate entity or flag.
+        // Simpler: Just spawn a floating text "+COIN" and add directly, or visual effect.
+        // Plan said "Coin Drops", implies pickup.
+        // Let's stick to direct add for MVP or better, reuse Gem with specific type?
+        // Gem class is simple. Let's make a Coin class or just modify Gem?
+        // Modify Gem is best but I can't see Gem.ts. 
+        // I'll assume I can just use a "Gold Gem" and handle pickup logic in Gem? 
+        // No, simpler: Direct addition with visual for now to save time/complexity.
+        // Actually, "Coins from mobs" -> standard is pickup.
+        // Let's hack it: Visual particle + auto-add OR assume new Gem type.
+        // I'll make a simple "Currency" entity or just modify Enemy to "give" coin.
+        // Let's modify Enemy to spawn a special "Coin" gem. I'll need to define a Coin entity.
+        // Or.. `Gem` takes a `value`. `Game` handles `checkCollisions`.
+        // Let's add `addCoin(amount)` method and call it when Enemy dies with probability. 
+        // Visual: Spawn floating text "+1 Coin".
+
+        this.coins += value;
+        this.spawnFloatingText(x, y, `+${value} Coin`, '#ffaa00');
+        if (this.ui) this.ui.updateCoins(this.coins); // If UI exists
     }
 
     addScreenShake(duration: number, intensity: number): void {

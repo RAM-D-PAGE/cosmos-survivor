@@ -40,11 +40,31 @@ export class UIManager {
     }
 
     setupEventListeners(): void {
-        const getBtn = (id: string) => document.getElementById(id);
+        console.log("[UI] Setting up event listeners...");
+        const getBtn = (id: string) => {
+            const el = document.getElementById(id);
+            if (!el) console.warn(`[UI] Button not found: ${id}`);
+            return el;
+        };
 
-        getBtn('restart-btn')?.addEventListener('click', () => this.game.restart());
+        // Force pointer events for menu manually just in case CSS fails
+        if (this.uiMainMenu) {
+            this.uiMainMenu.style.pointerEvents = 'auto';
+            this.uiMainMenu.style.zIndex = '1000';
+            console.log("[UI] Main Menu pointer-events set to auto");
+        }
+
+        getBtn('restart-btn')?.addEventListener('click', () => {
+            console.log("[UI] Restart Clicked");
+            this.game.restart();
+        });
         getBtn('quit-btn')?.addEventListener('click', () => location.reload());
-        getBtn('start-btn')?.addEventListener('click', () => this.showDifficultySelect());
+
+        getBtn('start-btn')?.addEventListener('click', () => {
+            console.log("[UI] Start Clicked");
+            this.showDifficultySelect();
+        });
+
         getBtn('submit-score-btn')?.addEventListener('click', () => this.game.submitScore());
 
         getBtn('pause-btn')?.addEventListener('click', () => this.game.togglePause());
@@ -53,7 +73,10 @@ export class UIManager {
 
         this.setupDifficultyButtons();
 
-        getBtn('open-leaderboard-btn')?.addEventListener('click', () => this.game.showLeaderboard(false));
+        getBtn('open-leaderboard-btn')?.addEventListener('click', () => {
+            console.log("[UI] Leaderboard Clicked");
+            this.game.showLeaderboard(false);
+        });
         getBtn('close-leaderboard-btn')?.addEventListener('click', () => this.showMainMenu());
 
         // Skill Management
@@ -63,7 +86,131 @@ export class UIManager {
         // Settings Panel
         getBtn('open-settings-btn')?.addEventListener('click', () => this.showSettingsPanel());
         getBtn('close-settings-btn')?.addEventListener('click', () => this.hideSettingsPanel());
+        getBtn('close-settings-btn')?.addEventListener('click', () => this.hideSettingsPanel());
         this.setupSettingsPanel();
+
+        // Login System
+        getBtn('login-btn')?.addEventListener('click', () => this.showLoginModal());
+        getBtn('logout-btn')?.addEventListener('click', () => {
+            this.game.loginSystem.logout();
+            this.updateLoginState();
+        });
+
+        const handleAuth = async (isRegister: boolean) => {
+            const userIn = document.getElementById('login-username-input') as HTMLInputElement;
+            const passIn = document.getElementById('login-password-input') as HTMLInputElement;
+            const msgEl = document.getElementById('login-msg');
+
+            if (!userIn || !passIn) return;
+            const username = userIn.value.trim();
+            const password = passIn.value.trim();
+
+            if (username.length < 3 || password.length < 3) {
+                if (msgEl) msgEl.innerText = "Too short (min 3 chars)";
+                return;
+            }
+
+            if (msgEl) msgEl.innerText = "Processing...";
+
+            let result;
+            if (isRegister) {
+                result = await this.game.loginSystem.register(username, password);
+            } else {
+                result = await this.game.loginSystem.login(username, password);
+            }
+
+            if (result.success) {
+                if (isRegister) {
+                    if (msgEl) {
+                        msgEl.innerText = "Registered! Please Login.";
+                        msgEl.style.color = "#00ff00";
+                    }
+                } else {
+                    this.hideLoginModal();
+                    this.updateLoginState();
+                }
+            } else {
+                if (msgEl) {
+                    msgEl.innerText = result.message || "Error";
+                    msgEl.style.color = "#ff0000";
+                }
+            }
+        };
+
+        getBtn('confirm-login-btn')?.addEventListener('click', () => handleAuth(false));
+        getBtn('register-btn')?.addEventListener('click', () => handleAuth(true));
+        getBtn('cancel-login-btn')?.addEventListener('click', () => this.hideLoginModal());
+        getBtn('google-login-btn')?.addEventListener('click', () => {
+            this.game.loginSystem.loginWithGoogle();
+        });
+
+        // TikTok Integration
+        getBtn('link-tiktok-btn')?.addEventListener('click', () => this.handleTikTokLink());
+
+        // Initial Login Item Check
+        this.updateLoginState();
+    }
+
+    updateLoginState(): void {
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userDisplay = document.getElementById('user-display');
+        const tiktokBtn = document.getElementById('link-tiktok-btn');
+
+        if (this.game.loginSystem.isLoggedIn) {
+            if (loginBtn) loginBtn.classList.add('hidden');
+            if (logoutBtn) logoutBtn.classList.remove('hidden');
+            if (userDisplay) {
+                userDisplay.innerText = `PILOT: ${this.game.loginSystem.username}`;
+                userDisplay.classList.remove('hidden');
+            }
+            if (tiktokBtn) tiktokBtn.classList.remove('hidden');
+        } else {
+            if (loginBtn) loginBtn.classList.remove('hidden');
+            if (logoutBtn) logoutBtn.classList.add('hidden');
+            if (userDisplay) userDisplay.classList.add('hidden');
+            if (tiktokBtn) tiktokBtn.classList.add('hidden'); // Only logged in users can link? Or optional. Let's hide to encourage login.
+        }
+    }
+
+    showLoginModal(): void {
+        const modal = document.getElementById('login-modal');
+        const msg = document.getElementById('login-msg');
+        const userIn = document.getElementById('login-username-input') as HTMLInputElement;
+        const passIn = document.getElementById('login-password-input') as HTMLInputElement;
+
+        if (userIn) userIn.value = '';
+        if (passIn) passIn.value = '';
+        if (msg) msg.innerText = '';
+
+        if (modal) modal.classList.remove('hidden');
+        if (this.uiMainMenu) this.uiMainMenu.classList.add('hidden');
+    }
+
+    hideLoginModal(): void {
+        const modal = document.getElementById('login-modal');
+        if (modal) modal.classList.add('hidden');
+
+        // Restore Main Menu if we are not in-game (checking if HUD is hidden is a good proxy)
+        const hud = document.getElementById('hud');
+        if (hud && hud.classList.contains('hidden')) {
+            if (this.uiMainMenu) this.uiMainMenu.classList.remove('hidden');
+        }
+    }
+
+    handleTikTokLink(): void {
+        const btn = document.getElementById('link-tiktok-btn');
+        if (btn) btn.innerText = "Linking...";
+
+        // Simulate API call
+        setTimeout(() => {
+            this.game.unlockTikTokReward();
+            if (btn) {
+                btn.innerText = "TikTok Linked!";
+                (btn as HTMLButtonElement).disabled = true;
+            }
+            alert("TikTok Account Linked! You received the 'TikTok Follower' Drone!");
+        }, 1500);
     }
 
     setupSettingsPanel(): void {
@@ -117,7 +264,28 @@ export class UIManager {
             btn.innerText = isOn ? 'ON' : 'OFF';
             this.game.showFps = isOn;
             this.toggleFpsCounter(isOn);
+            this.game.showFps = isOn;
+            this.toggleFpsCounter(isOn);
             localStorage.setItem('cosmos_show_fps', isOn ? '1' : '0');
+        });
+
+        document.getElementById('delay-toggle-btn')?.addEventListener('click', (e) => {
+            const btn = e.target as HTMLButtonElement;
+            const isOn = btn.classList.toggle('active');
+            btn.innerText = isOn ? 'ON' : 'OFF';
+            this.game.resumeCountdownEnabled = isOn;
+            localStorage.setItem('cosmos_resume_delay', isOn ? '1' : '0');
+        });
+
+        document.getElementById('open-settings-btn')?.addEventListener('click', () => {
+            this.showSettingsPanel();
+        });
+        document.getElementById('pause-settings-btn')?.addEventListener('click', () => {
+            this.showSettingsPanel();
+        });
+
+        document.getElementById('close-settings-btn')?.addEventListener('click', () => {
+            this.hideSettingsPanel();
         });
 
         // Load saved settings
@@ -149,12 +317,28 @@ export class UIManager {
         // Toggles
         const shakeBtn = document.getElementById('shake-toggle-btn');
         const savedShake = localStorage.getItem('cosmos_screen_shake');
+
         if (shakeBtn && savedShake === '0') {
             shakeBtn.classList.remove('active');
-            shakeBtn.innerText = 'OFF';
             this.game.screenShakeEnabled = false;
         }
 
+        const delayBtn = document.getElementById('delay-toggle-btn');
+        const savedDelay = localStorage.getItem('cosmos_resume_delay');
+        if (delayBtn) {
+            if (savedDelay === '0') {
+                delayBtn.classList.remove('active');
+                delayBtn.innerText = 'OFF';
+                this.game.resumeCountdownEnabled = false;
+            } else {
+                // Default ON
+                delayBtn.classList.add('active');
+                delayBtn.innerText = 'ON';
+                this.game.resumeCountdownEnabled = true;
+            }
+        }
+        shakeBtn.innerText = 'OFF';
+        this.game.screenShakeEnabled = false;
         const dmgBtn = document.getElementById('dmg-numbers-toggle-btn');
         const savedDmg = localStorage.getItem('cosmos_damage_numbers');
         if (dmgBtn && savedDmg === '0') {
@@ -240,10 +424,24 @@ export class UIManager {
 
     showSettingsPanel(): void {
         document.getElementById('settings-panel')?.classList.remove('hidden');
+        this.uiMainMenu?.classList.add('hidden');
+        // Hide Pause Menu if open
+        document.getElementById('skills-menu')?.classList.add('hidden');
     }
 
     hideSettingsPanel(): void {
         document.getElementById('settings-panel')?.classList.add('hidden');
+
+        if (this.game.isPaused && this.game.gameState === 'PLAYING') {
+            // Return to Pause Menu (Skills Menu) if paused in game
+            document.getElementById('skills-menu')?.classList.remove('hidden');
+        } else {
+            // If HUD is hidden, we assume we are at Main Menu state, so restore it
+            const hud = document.getElementById('hud');
+            if (hud && hud.classList.contains('hidden')) {
+                this.uiMainMenu?.classList.remove('hidden');
+            }
+        }
     }
 
     // Skill icon mapping using emoji
@@ -260,18 +458,21 @@ export class UIManager {
             'ICEBALL': '❄️',
             'POISON_CLOUD': '☠️',
             'SHOCKWAVE': '💥',
-            // Fallback based on name
-            'Black Hole': '🕳️',
-            'Meteor Shower': '☄️',
-            'Time Stop': '⏱️',
-            'Doom': '💀',
-            'Lightning Storm': '⚡',
-            'Divine Shield': '🛡️',
-            'Soul Harvest': '👻',
-            'FireBall': '🔥',
-            'Ice Ball': '❄️',
-            'Poison Cloud': '☠️',
-            'Shockwave': '💥',
+            'GRAVITY_WELL': '🌌',
+            'PHOENIX_REBIRTH': '🔥',
+            'CLONE_ARMY': '👥',
+            'ARMAGEDDON': '🌋',
+            'TIME_REVERSAL': '⏪',
+            'INFINITE_POWER': '💪',
+            'CHAIN_EXPLOSION': '💣',
+            'BLADE_STORM': '⚔️',
+            'MIRROR_IMAGE': '🪞',
+            'HEAL_AURA': '💚',
+            'SPEED_BOOST': '⏩',
+            'ACID_SPRAY': '🤢',
+            'FROST_NOVA': '🥶',
+            'THUNDER_CLAP': '👏',
+            'SHIELD_BASH': '🛡️',
         };
         return icons[skillId] || '✨';
     }
@@ -280,76 +481,124 @@ export class UIManager {
     private draggedSlot: number = -1;
 
     setupSkillManagePanel(): void {
-        const slots = document.querySelectorAll('.slot-manage');
-        slots.forEach((slot) => {
-            const slotEl = slot as HTMLElement;
-            slotEl.draggable = true;
+        // Use delegation for better dynamic handling
+        const container = document.getElementById('skill-manage-panel');
+        if (!container) return;
 
-            // Drag start
-            slotEl.addEventListener('dragstart', (e) => {
-                const slotIndex = parseInt(slotEl.dataset.slot || '0');
+        container.addEventListener('dragstart', (e: any) => {
+            if (e.target && e.target.classList && (e.target.classList.contains('slot-manage') || e.target.classList.contains('bag-slot'))) {
+                const slotIndex = parseInt(e.target.dataset.slot || '0');
                 this.draggedSlot = slotIndex;
-                slotEl.classList.add('dragging');
+                e.target.classList.add('dragging');
                 if (e.dataTransfer) {
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('text/plain', slotIndex.toString());
                 }
-            });
+            }
+        });
 
-            // Drag end
-            slotEl.addEventListener('dragend', () => {
-                slotEl.classList.remove('dragging');
-                this.draggedSlot = -1;
-            });
+        container.addEventListener('dragend', (e: any) => {
+            if (e.target) e.target.classList.remove('dragging');
+            this.draggedSlot = -1;
+        });
 
-            // Drag over (allow drop)
-            slotEl.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-                slotEl.classList.add('drag-over');
-            });
+        container.addEventListener('dragover', (e: any) => {
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            if (e.target && e.target.classList && (e.target.classList.contains('slot-manage') || e.target.classList.contains('bag-slot'))) {
+                e.target.classList.add('drag-over');
+            }
+        });
 
-            // Drag leave
-            slotEl.addEventListener('dragleave', () => {
-                slotEl.classList.remove('drag-over');
-            });
+        container.addEventListener('dragleave', (e: any) => {
+            if (e.target) e.target.classList.remove('drag-over');
+        });
 
-            // Drop
-            slotEl.addEventListener('drop', (e) => {
-                e.preventDefault();
-                slotEl.classList.remove('drag-over');
-                const targetIndex = parseInt(slotEl.dataset.slot || '0');
+        container.addEventListener('drop', (e: any) => {
+            e.preventDefault();
+            // Find closest slot
+            const targetEl = e.target.closest('.slot-manage, .bag-slot');
+            if (targetEl) {
+                targetEl.classList.remove('drag-over');
+                const targetIndex = parseInt(targetEl.dataset.slot || '0');
                 if (this.draggedSlot !== -1 && this.draggedSlot !== targetIndex) {
                     this.swapSkills(this.draggedSlot, targetIndex);
                 }
-                this.draggedSlot = -1;
-            });
+            }
+            this.draggedSlot = -1;
+        });
 
-            // Click fallback (for mobile/touch)
-            slot.addEventListener('click', () => {
-                const slotIndex = parseInt(slotEl.dataset.slot || '0');
+        container.addEventListener('click', (e: any) => {
+            const targetEl = e.target.closest('.slot-manage, .bag-slot');
+            if (targetEl) {
+                const slotIndex = parseInt(targetEl.dataset.slot || '0');
                 if (this.selectedSwapSlot === -1) {
                     this.selectedSwapSlot = slotIndex;
-                    slot.classList.add('selected');
+                    targetEl.classList.add('selected');
                 } else if (this.selectedSwapSlot === slotIndex) {
                     this.selectedSwapSlot = -1;
-                    slot.classList.remove('selected');
+                    targetEl.classList.remove('selected');
                 } else {
                     this.swapSkills(this.selectedSwapSlot, slotIndex);
                     this.selectedSwapSlot = -1;
-                    document.querySelectorAll('.slot-manage').forEach(s => s.classList.remove('selected'));
+                    // proper toggle remove
+                    container.querySelectorAll('.selected').forEach((el: any) => el.classList.remove('selected'));
                 }
-            });
+            }
         });
     }
 
     swapSkills(a: number, b: number): void {
         if (!this.game.skillSystem) return;
-        const skills = this.game.skillSystem.activeSkills;
-        // Allow swapping even if one slot is empty (undefined)
-        const temp = skills[a];
-        skills[a] = skills[b];
-        skills[b] = temp;
+
+        const active = this.game.skillSystem.activeSkills;
+        const bag = this.game.skillSystem.bagSkills;
+
+        const getSkill = (idx: number) => {
+            if (idx < 100) return active[idx];
+            return bag[idx - 100];
+        };
+
+        const setSkill = (idx: number, val: any) => {
+            if (idx < 100) active[idx] = val;
+            else bag[idx - 100] = val;
+        };
+
+        const skillA = getSkill(a);
+        const skillB = getSkill(b);
+
+        // Allow swapping (swap values logic)
+        // Note: activeSkills usually should check maxSkills but here we are just swapping slots.
+        // If swapping from bag to active (and active is full/defined), it's a swap.
+        // If swapping from bag to active (and active is empty/undefined), it's a move.
+        // Arrays might have holes if we use direct assignment, but TS array is flexible.
+        // Cleaner to use splice or direct assignment logic.
+
+        // Logic:
+        // 1. Remove A from source
+        // 2. Insert B into source A
+        // 3. Put A into source B
+        // Wait, Array indices...
+
+        setSkill(a, skillB);
+        setSkill(b, skillA);
+
+        // Cleanup undefined from active if they became empty? 
+        // No, activeSkills is likely expected to be compact (length-based) in Update loop?
+        // Game.ts/SkillSystem.ts update loop uses `activeSkills.forEach` or index loop.
+        // `forEach` skips empty slots if array is sparse. 
+        // `activeSkills[index]` access is used.
+        // Ideally we should filter out undefined from activeSkills to keep it clean, 
+        // but Swapping specific slots (Key 1, Key 2, Key 3) implies fixed slots.
+        // If I move Skill 1 to Bag, Slot 1 becomes empty.
+        // SkillSystem update loop: `this.activeSkills[index]`
+        // So yes, sparse is fine for active slots if we treat them as fixed slots 0,1,2.
+
+        // But `activeSkills` is declared as array. `push` was used.
+        // We should treat it as fixed 3 slots now.
+        // Or re-pack active skills? 
+        // Let's just swap. If undefined is in active, `tryActivateSkill` checks `if (!skill) return`. Safe.
+
         this.updateSkillManagePanel();
         this.game.spawnFloatingText(this.game.player.x, this.game.player.y, "Skills Swapped!", "#00f0ff");
         this.game.audio.playClick();
@@ -357,24 +606,27 @@ export class UIManager {
 
     showSkillManagePanel(): void {
         document.getElementById('skill-manage-panel')?.classList.remove('hidden');
-        this.game.isPaused = true; // Pause game while managing
+        this.game.isPaused = true;
         this.updateSkillManagePanel();
     }
 
     hideSkillManagePanel(): void {
         document.getElementById('skill-manage-panel')?.classList.add('hidden');
         this.selectedSwapSlot = -1;
-        this.game.isPaused = false; // Resume game
-        document.querySelectorAll('.slot-manage').forEach(s => s.classList.remove('selected'));
+        this.game.isPaused = false;
+        document.querySelectorAll('.selected').forEach(s => s.classList.remove('selected'));
     }
 
     updateSkillManagePanel(): void {
-        const skills = this.game.skillSystem ? this.game.skillSystem.activeSkills : [];
+        const active = this.game.skillSystem ? this.game.skillSystem.activeSkills : [];
+        const bag = this.game.skillSystem ? this.game.skillSystem.bagSkills : [];
+
+        // Update Active Slots (0-2)
         for (let i = 0; i < 3; i++) {
             const el = document.getElementById(`slot-${i}-skill`);
             const slotEl = document.querySelector(`.slot-manage[data-slot="${i}"]`) as HTMLElement;
             if (el && slotEl) {
-                const skill = skills[i];
+                const skill = active[i];
                 const icon = skill ? this.getSkillIcon(skill.id || skill.name) : '❌';
                 el.innerHTML = skill
                     ? `<span style="font-size:20px; margin-right:8px;">${icon}</span>${skill.name}`
@@ -383,6 +635,55 @@ export class UIManager {
                 slotEl.style.borderColor = skill ? skill.color : '#444';
             }
         }
+
+        // Update Bag (100+)
+        const bagGrid = document.getElementById('skill-bag-grid');
+        if (bagGrid) {
+            bagGrid.innerHTML = '';
+            // Render existing bag items + 1 empty slot for convenience? Or just render items.
+            // If bag is empty, render placeholder.
+            if (bag.length === 0) {
+                bagGrid.innerHTML = '<span style="color:#666; width:100%; text-align:center;">Empty Bag</span>';
+            }
+
+            bag.forEach((skill: any, index: number) => {
+                const slotId = 100 + index;
+                const div = document.createElement('div');
+                div.className = 'bag-slot';
+                div.dataset.slot = slotId.toString();
+                div.draggable = true;
+                div.style.cssText = `
+                    width: 60px; height: 60px; border: 1px solid ${skill.color};
+                    border-radius: 5px; display: flex; align-items: center; justify-content: center;
+                    background: rgba(0,0,0,0.5); cursor: grab; font-size: 24px;
+                `;
+                div.innerText = this.getSkillIcon(skill.id || skill.name);
+                div.title = skill.name;
+                bagGrid.appendChild(div);
+            });
+
+            // Should we add an empty slot to drag TO if we want to unequip?
+            // "Drag from active to bag" appends to bag.
+            // But swap requires index.
+            // If I drag Active -> Bag, I swap with NEW bag item? No.
+            // Let's add an explicit "New Slot" at the end of bag to allow unequip.
+            const emptySlotId = 100 + bag.length;
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'bag-slot';
+            emptyDiv.dataset.slot = emptySlotId.toString();
+            emptyDiv.style.cssText = `
+                width: 60px; height: 60px; border: 1px dashed #444;
+                border-radius: 5px; display: flex; align-items: center; justify-content: center;
+                color: #444;
+            `;
+            emptyDiv.innerText = '+';
+            bagGrid.appendChild(emptyDiv);
+        }
+    }
+
+    updateCoins(amount: number): void {
+        const el = document.getElementById('coin-display');
+        if (el) el.innerText = Math.floor(amount).toString();
     }
 
     setupDifficultyButtons(): void {
@@ -528,21 +829,26 @@ export class UIManager {
 
             const btn = document.createElement('button');
             btn.className = 'glow-btn';
-            btn.innerText = 'REROLL (10 MAX HP)';
+            btn.innerText = 'REROLL (10 COINS)';
             btn.style.fontSize = '16px';
             btn.style.padding = '10px 30px';
 
-            btn.onclick = () => {
-                const player = this.game.player;
-                if (player.maxHp > 10) {
-                    player.maxHp -= 10;
-                    if (player.hp > player.maxHp) player.hp = player.maxHp;
+            if (this.game.coins < 10) {
+                btn.style.borderColor = '#550000';
+                btn.style.color = '#aa0000';
+                btn.style.boxShadow = 'none';
+                btn.style.cursor = 'not-allowed';
+            }
 
+            btn.onclick = () => {
+                if (this.game.coins >= 10) {
+                    this.game.coins -= 10;
                     this.game.audio.playClick();
-                    this.game.spawnFloatingText(player.x, player.y, "-10 MAX HP", "#ff0000");
+                    this.game.spawnFloatingText(this.game.player.x, this.game.player.y, "-10 COINS", "#ffaa00");
                     this.game.showUpgradeMenu();
+                    if (this.game.ui) this.game.ui.updateCoins(this.game.coins);
                 } else {
-                    this.game.spawnFloatingText(player.x, player.y, "NOT ENOUGH HP!", "#ff0000");
+                    this.game.spawnFloatingText(this.game.player.x, this.game.player.y, "NOT ENOUGH COINS!", "#ff0000");
                 }
             };
 
@@ -562,21 +868,23 @@ export class UIManager {
         if (!contentDiv) return;
 
         contentDiv.innerHTML = '';
+        const isTH = this.game.ui?.currentLocale === 'TH';
 
         const col1 = document.createElement('div');
         col1.className = 'column';
-        col1.innerHTML = '<h3>สถานะยาน</h3>';
+        col1.innerHTML = `<h3>${isTH ? 'สถานะยาน' : 'Ship Stats'}</h3>`;
         const statsUl = document.createElement('ul');
         statsUl.id = 'skills-list-stats';
 
         const p = this.game.player;
         const stats = [
-            { label: 'ดาเมจ', val: Math.round(p.damage) },
-            { label: 'อัตรายิง', val: `${p.fireRate.toFixed(1)}/วิ` },
-            { label: 'กระสุน', val: p.projectileCount },
-            { label: 'HP สูงสุด', val: Math.round(p.maxHp) },
-            { label: 'ฟื้นฟู HP', val: `${p.hpRegen.toFixed(1)}/วิ` },
-            { label: 'แม่เหล็ก', val: `${Math.round(p.pickupRange)}px` }
+            { label: isTH ? 'ดาเมจ' : 'Damage', val: Math.round(p.damage) },
+            { label: isTH ? 'อัตรายิง' : 'Fire Rate', val: `${p.fireRate.toFixed(1)}/s` },
+            { label: isTH ? 'กระสุน' : 'Projectiles', val: p.projectileCount },
+            { label: isTH ? 'HP สูงสุด' : 'Max HP', val: Math.round(p.maxHp) },
+            { label: isTH ? 'ฟื้นฟู HP' : 'HP Regen', val: `${p.hpRegen.toFixed(1)}/s` },
+            { label: isTH ? 'ความเร็ว' : 'Speed', val: Math.round(p.maxSpeed) },
+            { label: isTH ? 'แม่เหล็ก' : 'Magnet', val: `${Math.round(p.pickupRange)}px` }
         ];
 
         stats.forEach(s => {
@@ -589,7 +897,7 @@ export class UIManager {
 
         const col2 = document.createElement('div');
         col2.className = 'column';
-        col2.innerHTML = '<h3>บันทึกอัพเกรด</h3>';
+        col2.innerHTML = `<h3>${isTH ? 'บันทึกอัพเกรด' : 'Upgrade Log'}</h3>`;
         const logUl = document.createElement('ul');
         logUl.id = 'skills-list-log';
 
@@ -635,6 +943,12 @@ export class UIManager {
             } else if (this.game.mapSystem.miniBossSpawned && zonePct < 100 && zonePct > 50) {
                 label = "MINI BOSS ACTIVE";
                 color = "#ff00aa";
+            } else {
+                const debuff = this.game.mapSystem.currentZone.debuff;
+                if (debuff && debuff !== 'NONE') {
+                    label += ` [${debuff}]`;
+                    color = "#ffaa00";
+                }
             }
             setText(this.uiZoneLabel, label);
             if (this.uiZoneLabel) this.uiZoneLabel.style.color = color;
@@ -643,9 +957,6 @@ export class UIManager {
             if (zoneNameEl) {
                 const zoneName = this.game.mapSystem.currentZone.name || "UNKNOWN SECTOR";
                 if (zoneNameEl.innerText !== zoneName) zoneNameEl.innerText = zoneName;
-
-                // Optional: Update color based on zone
-                // if (this.game.backgroundSystem) zoneNameEl.style.textShadow = `0 0 10px ${this.game.mapSystem.currentZone.starColor}`;
             }
         }
 
@@ -958,4 +1269,5 @@ export class UIManager {
             container.appendChild(div);
         });
     }
+
 }

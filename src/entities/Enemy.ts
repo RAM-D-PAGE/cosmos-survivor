@@ -84,6 +84,15 @@ export class Enemy {
         this.contactDamage = (cfg.DAMAGE || 10) * waveMult * diffMult;
 
         this.initTypeSpecific(type, cfg, scale);
+
+        // Auto-flag Boss types as Elite for indicators
+        if (type.toLowerCase().includes('boss') || type === 'swarm_mother') {
+            this.isElite = true;
+            if (!this.eliteModifiers.length) {
+                this.eliteModifiers.push('BOSS_TRAIT'); // Just to ensure it has some property if needed
+            }
+        }
+
     }
 
     initTypeSpecific(type: string, cfg: any, scale: number): void {
@@ -458,7 +467,10 @@ export class Enemy {
 
         this.game.spawnFloatingText(this.x, this.y - 20, Math.round(amount).toString(), this.isElite ? '#ffaa00' : '#ffffff');
         this.game.audio.playHit();
-        this.game.addExp(1); // XP on Hit (User Request)
+
+        // XP on Hit (User Request: Min 1, scaled by damage)
+        const hitXp = Math.max(1, Math.floor(amount * 0.1));
+        this.game.addExp(hitXp);
 
         if (this.type === 'adaptive') {
             this.lastDamageType = damageType;
@@ -486,6 +498,13 @@ export class Enemy {
             // 10% chance to drop skill
             if (Math.random() < 0.1) {
                 this.game.skillSystem?.generateBossSkillDrop();
+            }
+            // Elite always drops coin
+            this.game.spawnCoin(this.x, this.y, 5);
+        } else {
+            // 20% chance for normal mobs
+            if (Math.random() < 0.2) {
+                this.game.spawnCoin(this.x, this.y, 1);
             }
         }
     }

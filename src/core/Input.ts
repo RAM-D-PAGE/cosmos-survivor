@@ -2,8 +2,11 @@ export class Input {
     keys: Record<string, boolean>;
     mouse: { x: number; y: number; isDown: boolean };
 
+    previousKeys: Record<string, boolean>;
+
     constructor() {
         this.keys = {};
+        this.previousKeys = {};
         this.mouse = { x: 0, y: 0, isDown: false };
 
         window.addEventListener('keydown', (e: KeyboardEvent) => this.onKeyDown(e));
@@ -11,6 +14,21 @@ export class Input {
         window.addEventListener('mousemove', (e: MouseEvent) => this.onMouseMove(e));
         window.addEventListener('mousedown', (e: MouseEvent) => this.onMouseDown(e));
         window.addEventListener('mouseup', (e: MouseEvent) => this.onMouseUp(e));
+        window.addEventListener('blur', () => this.reset());
+        window.addEventListener('contextmenu', (e: MouseEvent) => {
+            e.preventDefault();
+            this.reset();
+        });
+    }
+
+    reset(): void {
+        this.keys = {};
+        this.previousKeys = {};
+        this.mouse.isDown = false;
+    }
+
+    update(): void {
+        this.previousKeys = { ...this.keys };
     }
 
     onKeyDown(e: KeyboardEvent): void {
@@ -40,6 +58,10 @@ export class Input {
 
     isKeyPressed(code: string): boolean {
         return !!this.keys[code];
+    }
+
+    isKeyJustPressed(code: string): boolean {
+        return !!this.keys[code] && !this.previousKeys[code];
     }
 
     getMousePosition(): { x: number; y: number } {

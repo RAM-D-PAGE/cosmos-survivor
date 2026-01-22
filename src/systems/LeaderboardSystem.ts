@@ -1,4 +1,5 @@
 import { SUPABASE_CONFIG } from '../core/Env';
+import { getSupabase } from '../core/SupabaseClient';
 
 export class LeaderboardSystem {
     private game: any;
@@ -8,15 +9,7 @@ export class LeaderboardSystem {
 
     constructor(game: any) {
         this.game = game;
-
-        if ((window as any).supabase) {
-            try {
-                this.supabase = (window as any).supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.KEY);
-                console.log('Supabase initialized');
-            } catch (e) {
-                console.error('Supabase init failed. Using Offline Mode.', e);
-            }
-        }
+        this.supabase = getSupabase();
     }
 
     async saveScore(scoreData: any): Promise<void> {

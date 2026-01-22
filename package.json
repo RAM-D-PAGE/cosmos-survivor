@@ -13,6 +13,6 @@
     "license": "ISC",
     "devDependencies": {
         "typescript": "^5.0.0",
-        "vite": "^5.0.0"
+        "vite": "^7.3.1"
     }
 }

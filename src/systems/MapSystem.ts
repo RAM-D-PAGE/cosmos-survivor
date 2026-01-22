@@ -38,17 +38,23 @@ export class MapSystem {
         { type: 'INTERFERENCE', weight: 1 }
     ];
 
+    public currentZoneModifiers: any[] = [];
+    public zoneDescription: string = "";
+    public zoneDescriptionTH: string = "";
+
     constructor(game: any) {
         this.game = game;
         this.timer = 0;
-        this.zoneCount = 0;
         this.bossSpawned = false;
         this.miniBossSpawned = false;
         this.waitingForKill = false;
         this.hazardTimer = 0;
         this.totalTime = 0;
+        this.zoneCount = 0;
 
         this.currentZone = this.generateZone(0);
+        this.updateZoneInfo(); // Helper to sync public props
+
         this.nextZone = this.generateZone(1);
         if (this.game.backgroundSystem) {
             this.game.backgroundSystem.setBiome(
@@ -56,6 +62,21 @@ export class MapSystem {
                 this.currentZone.starColor,
                 this.currentZone.nebulaColors
             );
+        }
+    }
+
+    private updateZoneInfo(): void {
+        this.zoneDescription = this.currentZone.name;
+        // Mock TH description mapping or simple passthrough
+        this.zoneDescriptionTH = this.currentZone.name;
+
+        // Expose modifiers if any (mock logic for now as generateZone returns specific structure)
+        this.currentZoneModifiers = [];
+        if (this.currentZone.debuff !== 'NONE') {
+            this.currentZoneModifiers.push({
+                type: 'DEBUFF',
+                name: this.currentZone.debuff
+            });
         }
     }
 
@@ -183,8 +204,10 @@ export class MapSystem {
             this.timer = 0;
             this.zoneCount++;
             this.currentZone = this.nextZone;
+            this.updateZoneInfo(); // Sync new zone info
             this.nextZone = this.generateZone(this.zoneCount + 1);
             this.bossSpawned = false;
+
             this.miniBossSpawned = false;
             this.game.spawnFloatingText(this.game.player.x, this.game.player.y - 100, `WARP: ${this.currentZone.name}`, '#00f0ff');
 

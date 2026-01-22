@@ -43,7 +43,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         descriptionEN: 'Freezes all enemies in place',
         descriptionTH: 'หยุดเวลาศัตรูทั้งหมดให้อยู่กับที่',
         cooldown: 45,
-        duration: 2,
+        duration: 7,
         color: '#ffffff',
         rarity: 'LEGENDARY',
     },
@@ -319,20 +319,6 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         color: '#88ff00',
         rarity: 'EPIC',
     },
-    SHIELD_BASH: {
-        id: 'SHIELD_BASH',
-        name: 'Shield Bash',
-        type: 'STUN_AOE',
-        description: 'Stun and push enemies',
-        descriptionEN: 'Bash forward, stunning and pushing all enemies hit',
-        descriptionTH: 'พุ่งชนศัตรู ทำให้ Stun และผลักกระเด็น',
-        cooldown: 12,
-        damage: 30,
-        stunDuration: 2,
-        range: 100,
-        color: '#ffaa00',
-        rarity: 'EPIC',
-    },
 
     // ============= NEW SKILLS - RARE =============
     ACID_SPRAY: {
@@ -376,6 +362,32 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         radius: 150,
         color: '#ffff88',
         rarity: 'RARE',
+    },
+
+    // ============= NEW SKILLS - UNCOMMON =============
+    SHIELD_BASH: {
+        id: "SHIELD_BASH",
+        name: "Shield Bash",
+        type: "STUN_AOE",
+        description: "Dash forward and stun enemies.",
+        descriptionTH: "พุ่งชนและทำให้ศัตรูมึนงง",
+        cooldown: 8,
+        damage: 50,
+        range: 100,
+        stunDuration: 2,
+        color: "#ffff00",
+        rarity: "UNCOMMON"
+    },
+    BLINK: {
+        id: "BLINK",
+        name: "Warp Jump",
+        type: "BLINK",
+        description: "Teleport to cursor position (Max 400 range).",
+        descriptionTH: "วาร์ปไประยะสั้นตามตำแหน่งเมาส์ (ระยะสูงสุด 400)",
+        cooldown: 5,
+        range: 400,
+        color: "#00ffff",
+        rarity: "RARE"
     }
 };
 
