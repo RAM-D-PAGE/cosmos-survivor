@@ -40,6 +40,17 @@ export interface LocaleStrings {
     showFps: string;
     on: string;
     off: string;
+    controlsHint: string;
+    resumeDelay: string;
+    gameSubtitle: string;
+    howToPlay: string;
+
+    // Help / Controls
+    cMove: string;
+    cAim: string;
+    cDash: string;
+    cSkill: string;
+    cPause: string;
 
     // Difficulty
     easy: string;
@@ -122,6 +133,16 @@ export const LOCALE_EN: LocaleStrings = {
     showFps: 'Show FPS',
     on: 'ON',
     off: 'OFF',
+    controlsHint: 'WASD Move | Mouse Aim/Shoot | SPACE Dash | 1-3 Skills | TAB Pause',
+    resumeDelay: 'Resume Delay',
+    gameSubtitle: 'Survive in the endless void',
+    howToPlay: 'HOW TO PLAY',
+
+    cMove: 'WASD to Move',
+    cAim: 'Mouse to Aim / Click to Shoot',
+    cDash: 'SPACE to Dash',
+    cSkill: '1-3 to use Skills',
+    cPause: 'TAB to Pause',
 
     // Difficulty
     easy: 'EASY',
@@ -204,6 +225,16 @@ export const LOCALE_TH: LocaleStrings = {
     showFps: 'แสดง FPS',
     on: 'เปิด',
     off: 'ปิด',
+    controlsHint: 'WASD เคลื่อนที่ | เมาส์เล็ง/คลิกยิง | SPACE แดช | 1-3 สกิล | TAB หยุด',
+    resumeDelay: 'ดีเลย์เริ่มเกม',
+    gameSubtitle: 'เอาชีวิตรอดในความว่างเปล่าอันไร้ที่สิ้นสุด',
+    howToPlay: 'วิธีเล่น',
+
+    cMove: 'WASD เคลื่อนที่',
+    cAim: 'เมาส์เล็ง / คลิกยิง',
+    cDash: 'SPACE พุ่งตัว',
+    cSkill: '1-3 ใช้สกิล',
+    cPause: 'TAB หยุดเกม',
 
     // Difficulty
     easy: 'ง่าย',

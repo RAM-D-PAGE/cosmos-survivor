@@ -31,7 +31,7 @@ export const SKILL_SYNERGIES: SkillSynergy[] = [
         descriptionTH: 'หยุดเวลา + สายฟ้า: +200% ดาเมจสายฟ้าระหว่างหยุดเวลา',
         requiredSkills: ['TIME_STOP', 'LIGHTNING_STORM'],
         effect: 'LIGHTNING_BOOST',
-        bonusMultiplier: 3.0
+        bonusMultiplier: 3
     },
     {
         id: 'SOUL_REAPER',
@@ -41,7 +41,7 @@ export const SKILL_SYNERGIES: SkillSynergy[] = [
         descriptionTH: 'คำสาป + เก็บเกี่ยววิญญาณ: เพิ่มเกณฑ์สังหาร +15% (รวม 30%)',
         requiredSkills: ['DOOM', 'SOUL_HARVEST'],
         effect: 'EXECUTE_BOOST',
-        bonusMultiplier: 0.30 // 30% HP threshold
+        bonusMultiplier: 0.3 // 30% HP threshold
     },
     {
         id: 'STEAM_EXPLOSION',
@@ -51,7 +51,7 @@ export const SKILL_SYNERGIES: SkillSynergy[] = [
         descriptionTH: 'ลูกไฟ + ลูกน้ำแข็ง: ศัตรูที่โดนทั้งสองได้รับดาเมจเพิ่ม',
         requiredSkills: ['FIREBALL', 'ICEBALL'],
         effect: 'ELEMENTAL_COMBO',
-        bonusMultiplier: 2.0
+        bonusMultiplier: 2
     },
     {
         id: 'TOXIC_WAVE',
@@ -83,8 +83,8 @@ export const SKILL_SYNERGIES: SkillSynergy[] = [
 ];
 
 // Synergy Manager class
-export class SynergyManager {
-    private game: any;
+export class ComboManager {
+    private readonly game: any;
     private activeSynergies: SkillSynergy[] = [];
 
     constructor(game: any) {
@@ -92,7 +92,7 @@ export class SynergyManager {
     }
 
     // Check which synergies are active based on equipped skills
-    checkSynergies(): SkillSynergy[] {
+    checkCombos(): SkillSynergy[] {
         const equippedSkillIds = this.game.skillSystem?.activeSkills?.map((s: any) => s.id) || [];
 
         this.activeSynergies = SKILL_SYNERGIES.filter(synergy =>
@@ -103,18 +103,18 @@ export class SynergyManager {
     }
 
     // Check if a specific synergy effect is active
-    hasSynergy(effectId: string): boolean {
+    hasCombo(effectId: string): boolean {
         return this.activeSynergies.some(s => s.effect === effectId);
     }
 
     // Get bonus multiplier for a synergy effect
-    getSynergyMultiplier(effectId: string): number {
+    getComboMultiplier(effectId: string): number {
         const synergy = this.activeSynergies.find(s => s.effect === effectId);
-        return synergy?.bonusMultiplier || 1.0;
+        return synergy?.bonusMultiplier || 1;
     }
 
     // Get active synergies for UI display
-    getActiveSynergies(): SkillSynergy[] {
+    getActiveCombos(): SkillSynergy[] {
         return this.activeSynergies;
     }
 

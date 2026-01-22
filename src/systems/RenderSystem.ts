@@ -14,16 +14,15 @@ export class RenderSystem {
         this.ctx.fillStyle = '#000000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Precompute per-frame pulse (avoid multiple Date.now calls per enemy)
+        const pulse = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+
         // Apply Camera/Shake
         this.ctx.save();
 
-        // Screen Shake
-        let shakeX = 0;
-        let shakeY = 0;
-        if (this.game.shakeTimer > 0) {
-            shakeX = (Math.random() - 0.5) * this.game.shakeIntensity * 2;
-            shakeY = (Math.random() - 0.5) * this.game.shakeIntensity * 2;
-        }
+        // Screen Shake (use pre-calculated values from Game.ts to avoid duplicate calculation)
+        const shakeX = this.game.shakeX || 0;
+        const shakeY = this.game.shakeY || 0;
 
         // Camera Transform
         const camX = this.game.camera ? -this.game.camera.x : 0;
@@ -35,14 +34,44 @@ export class RenderSystem {
         // 1. Draw Background (Chunks)
         if (this.game.backgroundSystem) this.game.backgroundSystem.draw(this.ctx);
 
-        // 2. Draw Gems
-        this.game.gems.forEach((gem: any) => this.drawGem(gem));
+        // Calculate view bounds for culling
+        const viewLeft = -camX - shakeX;
+        const viewRight = viewLeft + this.canvas.width;
+        const viewTop = -camY - shakeY;
+        const viewBottom = viewTop + this.canvas.height;
+        const margin = 100; // Draw margin to prevent pop-in
 
-        // 3. Draw Projectiles
-        this.game.projectiles.forEach((proj: any) => this.drawProjectile(proj));
+        // STOP HERE if we are in Main Menu (don't draw entities)
+        if (this.game.stateManager.isMenu()) {
+            this.ctx.restore();
+            return;
+        }
 
-        // 4. Draw Enemies
-        this.game.enemies.forEach((enemy: any) => this.drawEnemy(enemy));
+        // 2. Draw Gems (with culling)
+        this.game.gems.forEach((gem: any) => {
+            if (gem.x >= viewLeft - margin && gem.x <= viewRight + margin &&
+                gem.y >= viewTop - margin && gem.y <= viewBottom + margin) {
+                this.drawGem(gem);
+            }
+        });
+
+        // 3. Draw Projectiles (with culling)
+        this.game.projectiles.forEach((proj: any) => {
+            if (proj.x >= viewLeft - margin && proj.x <= viewRight + margin &&
+                proj.y >= viewTop - margin && proj.y <= viewBottom + margin) {
+                this.drawProjectile(proj);
+            }
+        });
+
+        // 4. Draw Enemies (with culling)
+        this.game.enemies.forEach((enemy: any) => {
+            if (enemy.x >= viewLeft - enemy.radius - margin &&
+                enemy.x <= viewRight + enemy.radius + margin &&
+                enemy.y >= viewTop - enemy.radius - margin &&
+                enemy.y <= viewBottom + enemy.radius + margin) {
+                this.drawEnemy(enemy, pulse);
+            }
+        });
 
         // 5. Draw Player
         if (this.game.player) this.drawPlayer(this.game.player);
@@ -56,8 +85,8 @@ export class RenderSystem {
         // 8. Draw Skill Effects (from SkillSystem)
         if (this.game.skillSystem) this.game.skillSystem.draw(this.ctx);
 
-        // 9. Draw Weapons (e.g. Drones/Turrets)
-        if (this.game.weaponSystem) this.game.weaponSystem.draw(this.ctx);
+        // 9. Draw Weapons (e.g. Drones/Turrets) only when not paused
+        if (this.game.weaponSystem && this.game.stateManager.isPlaying()) this.game.weaponSystem.draw(this.ctx);
 
         this.ctx.restore();
 
@@ -95,7 +124,7 @@ export class RenderSystem {
         this.ctx.restore();
     }
 
-    drawEnemy(enemy: any): void {
+    drawEnemy(enemy: any, pulse: number): void {
         this.ctx.save();
         this.ctx.translate(enemy.x, enemy.y);
 
@@ -117,8 +146,7 @@ export class RenderSystem {
             this.ctx.globalAlpha = enemy.alpha || 0.8;
         }
 
-        // Pulse effect
-        const pulse = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+        // Pulse effect (precomputed per frame)
         this.ctx.scale(pulse, pulse);
 
         this.ctx.strokeStyle = enemy.color;
@@ -246,8 +274,8 @@ export class RenderSystem {
                 // Star shape
                 for (let i = 0; i < 5; i++) {
                     const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
-                    const r = enemy.radius; // Added r definition to fix potential error
-                    const rx = Math.cos(angle) * enemy.radius;
+                    const r = enemy.radius;
+                    const rx = Math.cos(angle) * r;
                     const ry = Math.sin(angle) * r;
                     if (i === 0) ctx.moveTo(rx, ry);
                     else ctx.lineTo(rx, ry);
@@ -324,12 +352,13 @@ export class RenderSystem {
     }
 
     drawParticle(p: any): void {
+        this.ctx.save();
         this.ctx.globalAlpha = p.life;
         this.ctx.fillStyle = p.color;
         this.ctx.beginPath();
         this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         this.ctx.fill();
-        this.ctx.globalAlpha = 1.0;
+        this.ctx.restore();
     }
 
     drawFloatingText(ft: any): void {
@@ -365,7 +394,7 @@ export class RenderSystem {
         const width = this.canvas.width;
         const height = this.canvas.height;
         const camera = this.game.camera;
-        const player = this.game.player;
+
 
         this.game.enemies.forEach((enemy: any) => {
             if (!enemy.isElite) return; // Only show for Elites/Bosses
@@ -379,36 +408,49 @@ export class RenderSystem {
 
             if (isOffScreen) {
                 // Calculate angle from center of screen (player position effectively relative to camera) to enemy
-                // Actually better: Angle from center of screen to (screenX, screenY)
                 const centerX = width / 2;
                 const centerY = height / 2;
                 const dx = screenX - centerX;
                 const dy = screenY - centerY;
                 const angle = Math.atan2(dy, dx);
 
-                // Clamp to screen edge
-                // Slope
-                const m = dy / dx;
+                let indicatorX = centerX;
+                let indicatorY = centerY;
 
-                let indicatorX, indicatorY;
-
-                if (Math.abs(dx) * height > Math.abs(dy) * width) {
-                    // Intersects vertical edges
-                    if (dx > 0) {
-                        indicatorX = width - padding;
-                    } else {
-                        indicatorX = padding;
-                    }
-                    indicatorY = centerY + (indicatorX - centerX) * m;
+                // Handle vertical/horizontal separately to avoid division by zero
+                if (dx === 0) {
+                    // straight up/down
+                    indicatorX = centerX;
+                    indicatorY = dy > 0 ? height - padding : padding;
+                } else if (dy === 0) {
+                    // straight left/right
+                    indicatorX = dx > 0 ? width - padding : padding;
+                    indicatorY = centerY;
                 } else {
-                    // Intersects horizontal edges
-                    if (dy > 0) {
-                        indicatorY = height - padding;
+                    // General case using slopes
+                    const m = dy / dx;
+                    if (Math.abs(dx) * height > Math.abs(dy) * width) {
+                        // Intersects vertical edges
+                        if (dx > 0) {
+                            indicatorX = width - padding;
+                        } else {
+                            indicatorX = padding;
+                        }
+                        indicatorY = centerY + (indicatorX - centerX) * m;
                     } else {
-                        indicatorY = padding;
+                        // Intersects horizontal edges
+                        if (dy > 0) {
+                            indicatorY = height - padding;
+                        } else {
+                            indicatorY = padding;
+                        }
+                        indicatorX = centerX + (indicatorY - centerY) / m;
                     }
-                    indicatorX = centerX + (indicatorY - centerY) / m;
                 }
+
+                // Clamp inside bounds
+                indicatorX = Math.max(padding, Math.min(width - padding, indicatorX));
+                indicatorY = Math.max(padding, Math.min(height - padding, indicatorY));
 
                 // Draw Arrow
                 this.ctx.save();

@@ -3,12 +3,21 @@ export class AudioSystem {
     private masterVolume: number;
     private sfxVolume: number;
     public enabled: boolean;
+    private lastPlayed: Map<string, number> = new Map();
 
     constructor() {
         this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
         this.masterVolume = 0.3;
         this.sfxVolume = 1.0;
         this.enabled = true;
+    }
+
+    private canPlay(key: string, cooldown: number): boolean {
+        const now = this.ctx.currentTime;
+        const last = this.lastPlayed.get(key) || 0;
+        if (now - last < cooldown) return false;
+        this.lastPlayed.set(key, now);
+        return true;
     }
 
     setMasterVolume(value: number): void {
@@ -21,6 +30,9 @@ export class AudioSystem {
 
     playShoot(): void {
         if (!this.enabled) return;
+        // Limit shoot sound to every 0.08s to avoid machine gun distortion
+        if (!this.canPlay('shoot', 0.08)) return;
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
@@ -40,6 +52,8 @@ export class AudioSystem {
 
     playDash(): void {
         if (!this.enabled) return;
+        if (!this.canPlay('dash', 0.2)) return;
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
@@ -59,6 +73,8 @@ export class AudioSystem {
 
     playHit(): void {
         if (!this.enabled) return;
+        if (!this.canPlay('hit', 0.1)) return; // 0.1s limit for hits
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
@@ -78,6 +94,8 @@ export class AudioSystem {
 
     playExplosion(): void {
         if (!this.enabled) return;
+        if (!this.canPlay('explosion', 0.15)) return; // 0.15s limit for explosions
+
         // Simple noise logic
         const bufferSize = this.ctx.sampleRate * 0.5; // 0.5 seconds
         const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
@@ -202,6 +220,27 @@ export class AudioSystem {
         osc2.start();
         osc1.stop(this.ctx.currentTime + 0.5);
         osc2.stop(this.ctx.currentTime + 0.5);
+    }
+
+    playSlash(): void {
+        if (!this.enabled) return;
+        if (!this.canPlay('slash', 0.05)) return;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.15);
+
+        gain.gain.setValueAtTime(this.masterVolume * this.sfxVolume * 0.4, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
     }
 
     playFreeze(): void {

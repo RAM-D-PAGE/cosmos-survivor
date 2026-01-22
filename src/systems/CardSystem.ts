@@ -25,7 +25,7 @@ export class CardSystem {
     private cardDefinitions: Record<string, CardDefinition>;
     private rarities: CardRarity[];
     private mysticalRarity: CardRarity;
-    private bossRarity: CardRarity;
+    private _bossRarity: CardRarity;
     private acquiredCards: Record<string, number>;
 
     constructor(game: any) {
@@ -413,14 +413,33 @@ export class CardSystem {
             WEAPON_SLOT: {
                 id: 'WEAPON_SLOT',
                 name: 'Weapon Bay',
+                nameTH: 'ช่องอาวุธ',
                 category: 'UTILITY',
                 description: 'Unlock additional weapon slot.',
+                descriptionTH: 'ปลดล็อกช่องอาวุธเพิ่มเติม',
                 baseValue: 1,
                 unit: ' slot',
                 weight: 0.08,
                 maxStacks: 3,
                 apply: (game, value) => {
                     game.weaponSystem.maxWeapons += value;
+                }
+            },
+
+            SKILL_SLOT: {
+                id: 'SKILL_SLOT',
+                name: 'Skill Module',
+                nameTH: 'ช่องสกิล',
+                category: 'UTILITY',
+                description: 'Unlock additional active skill slot.',
+                descriptionTH: 'ปลดล็อกช่องสกิลเพิ่มเติม',
+                baseValue: 1,
+                unit: ' slot',
+                weight: 0.06,
+                maxStacks: 3,
+                apply: (game, value) => {
+                    game.skillSystem.maxSkills += value;
+                    game.spawnFloatingText(game.player.x, game.player.y, "+1 SKILL SLOT", "#ff00ff");
                 }
             },
 
@@ -435,7 +454,7 @@ export class CardSystem {
                 weight: 0.05,
                 maxStacks: 1,
                 isMystical: true,
-                apply: (game, value) => {
+                apply: (game, _value) => {
                     game.player.autoShoot = true;
                     game.spawnFloatingText(game.player.x, game.player.y, "AUTO FIRE ONLINE", "#00f0ff");
                 }
@@ -450,7 +469,7 @@ export class CardSystem {
                 weight: 0.05,
                 maxStacks: 1,
                 isMystical: true,
-                apply: (game, value) => {
+                apply: (game, _value) => {
                     game.player.autoAim = true;
                     game.spawnFloatingText(game.player.x, game.player.y, "TARGETING ONLINE", "#ff00ea");
                 }
@@ -481,7 +500,7 @@ export class CardSystem {
                 unit: '',
                 weight: 0.1,
                 maxStacks: 999,
-                apply: (game, value) => {
+                apply: (game, _value) => {
                     game.gems.forEach((gem: any) => {
                         gem.magnetRange = 99999;
                         gem.speed = 1200;
@@ -506,7 +525,379 @@ export class CardSystem {
                     });
                     game.spawnFloatingText(game.player.x, game.player.y, "BOOM!", '#ff4400');
                 }
-            }
+            },
+
+            // ============= NEW OFFENSIVE CARDS =============
+            EXPLOSIVE_DAMAGE: {
+                id: 'EXPLOSIVE_DAMAGE',
+                name: 'Explosive Rounds',
+                nameTH: 'กระสุนระเบิด',
+                category: 'OFFENSIVE',
+                description: 'Projectiles explode on hit.',
+                descriptionTH: 'กระสุนระเบิดเมื่อโดนศัตรู',
+                baseValue: 1,
+                unit: ' explosion',
+                weight: 0.12,
+                maxStacks: 3,
+                apply: (game, value) => {
+                    game.player.explosiveProjectiles = (game.player.explosiveProjectiles || 0) + value;
+                }
+            },
+            BLEED_DAMAGE: {
+                id: 'BLEED_DAMAGE',
+                name: 'Bleeding Edge',
+                nameTH: 'คมมีดเลือด',
+                category: 'OFFENSIVE',
+                description: 'Projectiles cause bleeding DoT.',
+                descriptionTH: 'กระสุนทำให้ศัตรูเลือดไหล',
+                baseValue: 5,
+                unit: ' dmg/s',
+                weight: 0.18,
+                maxStacks: 5,
+                apply: (game, value) => {
+                    game.player.bleedDamage = (game.player.bleedDamage || 0) + value;
+                }
+            },
+            PROJECTILE_SIZE: {
+                id: 'PROJECTILE_SIZE',
+                name: 'Heavy Rounds',
+                nameTH: 'กระสุนหนัก',
+                category: 'OFFENSIVE',
+                description: 'Larger projectiles deal more damage.',
+                descriptionTH: 'กระสุนใหญ่ขึ้นสร้างความเสียหายมากขึ้น',
+                baseValue: 2,
+                unit: ' size',
+                weight: 0.25,
+                maxStacks: 5,
+                apply: (game, value) => {
+                    game.player.projectileSize = (game.player.projectileSize || 1) + value;
+                    game.player.damage += value * 2; // Size = damage
+                }
+            },
+            HOMING: {
+                id: 'HOMING',
+                name: 'Homing Missiles',
+                nameTH: 'มิสไซล์ตามเป้า',
+                category: 'OFFENSIVE',
+                description: 'Projectiles track enemies.',
+                descriptionTH: 'กระสุนตามเป้าหมายอัตโนมัติ',
+                baseValue: 1,
+                unit: ' homing',
+                weight: 0.08,
+                maxStacks: 1,
+                apply: (game, _value) => {
+                    game.player.homingProjectiles = true;
+                }
+            },
+            SPLIT_SHOT: {
+                id: 'SPLIT_SHOT',
+                name: 'Split Shot',
+                nameTH: 'ยิงแยก',
+                category: 'OFFENSIVE',
+                description: 'Projectiles split on hit.',
+                descriptionTH: 'กระสุนแยกเป็น 2 ลูกเมื่อโดนศัตรู',
+                baseValue: 1,
+                unit: ' split',
+                weight: 0.1,
+                maxStacks: 2,
+                apply: (game, value) => {
+                    game.player.splitShot = (game.player.splitShot || 0) + value;
+                }
+            },
+            EXPLOSION_RADIUS: {
+                id: 'EXPLOSION_RADIUS',
+                name: 'Bigger Boom',
+                nameTH: 'ระเบิดใหญ่',
+                category: 'OFFENSIVE',
+                description: 'Increase explosion radius.',
+                descriptionTH: 'เพิ่มรัศมีการระเบิด',
+                baseValue: 20,
+                unit: ' radius',
+                weight: 0.15,
+                maxStacks: 5,
+                apply: (game, value) => {
+                    game.player.explosionRadius = (game.player.explosionRadius || 0) + value;
+                }
+            },
+
+            // ============= NEW DEFENSIVE CARDS =============
+            DAMAGE_REDUCTION: {
+                id: 'DAMAGE_REDUCTION',
+                name: 'Reactive Armor',
+                nameTH: 'เกราะปฏิกิริยา',
+                category: 'DEFENSIVE',
+                description: 'Reduce all incoming damage.',
+                descriptionTH: 'ลดความเสียหายที่ได้รับทั้งหมด',
+                baseValue: 5,
+                unit: '% reduction',
+                weight: 0.3,
+                maxStacks: 6,
+                apply: (game, value) => {
+                    game.player.damageReduction = (game.player.damageReduction || 0) + value / 100;
+                }
+            },
+            HEALTH_ON_KILL: {
+                id: 'HEALTH_ON_KILL',
+                name: 'Vampiric Core',
+                nameTH: 'แกนดูดเลือด',
+                category: 'DEFENSIVE',
+                description: 'Heal on enemy kill.',
+                descriptionTH: 'ฟื้นฟู HP เมื่อฆ่าศัตรู',
+                baseValue: 5,
+                unit: ' HP/kill',
+                weight: 0.25,
+                maxStacks: 8,
+                apply: (game, value) => {
+                    game.player.healthOnKill = (game.player.healthOnKill || 0) + value;
+                }
+            },
+            INVULNERABILITY_FRAME: {
+                id: 'INVULNERABILITY_FRAME',
+                name: 'Phase Shift',
+                nameTH: 'เฟสชิฟต์',
+                category: 'DEFENSIVE',
+                description: 'Brief invulnerability after taking damage.',
+                descriptionTH: 'อมตะชั่วคราวหลังได้รับความเสียหาย',
+                baseValue: 0.5,
+                unit: 's invuln',
+                weight: 0.2,
+                maxStacks: 3,
+                apply: (game, value) => {
+                    game.player.invulnFrameDuration = (game.player.invulnFrameDuration || 0) + value;
+                }
+            },
+            REFLECT_DAMAGE: {
+                id: 'REFLECT_DAMAGE',
+                name: 'Thorn Shield',
+                nameTH: 'โล่หนาม',
+                category: 'DEFENSIVE',
+                description: 'Reflect damage back to attackers.',
+                descriptionTH: 'สะท้อนความเสียหายกลับไปยังผู้โจมตี',
+                baseValue: 20,
+                unit: '% reflect',
+                weight: 0.15,
+                maxStacks: 4,
+                apply: (game, value) => {
+                    game.player.reflectDamage = (game.player.reflectDamage || 0) + value / 100;
+                }
+            },
+            SHIELD_OVERLOAD: {
+                id: 'SHIELD_OVERLOAD',
+                name: 'Shield Overload',
+                nameTH: 'โล่โอเวอร์โหลด',
+                category: 'DEFENSIVE',
+                description: 'Shield regenerates faster.',
+                descriptionTH: 'โล่ฟื้นฟูเร็วขึ้น',
+                baseValue: 2,
+                unit: 's faster',
+                weight: 0.2,
+                maxStacks: 4,
+                apply: (game, value) => {
+                    game.player.shieldRegenSpeed = (game.player.shieldRegenSpeed || 0) + value;
+                }
+            },
+
+            // ============= NEW MOBILITY CARDS =============
+            AIR_DASH: {
+                id: 'AIR_DASH',
+                name: 'Air Dash',
+                nameTH: 'แดชกลางอากาศ',
+                category: 'MOBILITY',
+                description: 'Can dash in any direction mid-air.',
+                descriptionTH: 'สามารถแดชได้ทุกทิศทางกลางอากาศ',
+                baseValue: 1,
+                unit: ' air dash',
+                weight: 0.15,
+                maxStacks: 1,
+                apply: (game, _value) => {
+                    game.player.hasAirDash = true;
+                }
+            },
+            MOMENTUM: {
+                id: 'MOMENTUM',
+                name: 'Momentum',
+                nameTH: 'โมเมนตัม',
+                category: 'MOBILITY',
+                description: 'Maintain speed after dashing.',
+                descriptionTH: 'รักษาความเร็วหลังแดช',
+                baseValue: 0.5,
+                unit: 's duration',
+                weight: 0.2,
+                maxStacks: 4,
+                apply: (game, value) => {
+                    game.player.momentumDuration = (game.player.momentumDuration || 0) + value;
+                }
+            },
+            WALL_CLIMB: {
+                id: 'WALL_CLIMB',
+                name: 'Wall Climb',
+                nameTH: 'ปีนผนัง',
+                category: 'MOBILITY',
+                description: 'Can move along screen edges.',
+                descriptionTH: 'สามารถเคลื่อนที่ตามขอบหน้าจอได้',
+                baseValue: 1,
+                unit: '',
+                weight: 0.1,
+                maxStacks: 1,
+                apply: (game, _value) => {
+                    game.player.canWallClimb = true;
+                }
+            },
+            DASH_DAMAGE: {
+                id: 'DASH_DAMAGE',
+                name: 'Dash Strike',
+                nameTH: 'แดชสไตรค์',
+                category: 'MOBILITY',
+                description: 'Deal damage while dashing.',
+                descriptionTH: 'สร้างความเสียหายขณะแดช',
+                baseValue: 30,
+                unit: ' damage',
+                weight: 0.25,
+                maxStacks: 5,
+                apply: (game, value) => {
+                    game.player.dashDamage = (game.player.dashDamage || 0) + value;
+                }
+            },
+
+            // ============= NEW UTILITY CARDS =============
+            GEM_MULTIPLIER: {
+                id: 'GEM_MULTIPLIER',
+                name: 'Gem Collector',
+                nameTH: 'นักสะสมอัญมณี',
+                category: 'UTILITY',
+                description: 'Gems worth more XP.',
+                descriptionTH: 'อัญมณีให้ XP มากขึ้น',
+                baseValue: 25,
+                unit: '% more XP',
+                weight: 0.35,
+                maxStacks: 6,
+                apply: (game, value) => {
+                    game.player.gemMultiplier = (game.player.gemMultiplier || 1) + value / 100;
+                }
+            },
+            COIN_MULTIPLIER: {
+                id: 'COIN_MULTIPLIER',
+                name: 'Treasure Hunter',
+                nameTH: 'นักล่าสมบัติ',
+                category: 'UTILITY',
+                description: 'Coins worth more.',
+                descriptionTH: 'เหรียญมีค่ามากขึ้น',
+                baseValue: 20,
+                unit: '% more coins',
+                weight: 0.3,
+                maxStacks: 5,
+                apply: (game, value) => {
+                    game.player.coinMultiplier = (game.player.coinMultiplier || 1) + value / 100;
+                }
+            },
+            SKILL_COOLDOWN: {
+                id: 'SKILL_COOLDOWN',
+                name: 'Rapid Skills',
+                nameTH: 'สกิลเร็ว',
+                category: 'UTILITY',
+                description: 'Reduce skill cooldowns.',
+                descriptionTH: 'ลดคูลดาวน์สกิล',
+                baseValue: 10,
+                unit: '% faster',
+                weight: 0.2,
+                maxStacks: 5,
+                apply: (game, value) => {
+                    game.player.skillCooldownReduction = (game.player.skillCooldownReduction || 0) + value / 100;
+                }
+            },
+            WEAPON_COOLDOWN: {
+                id: 'WEAPON_COOLDOWN',
+                name: 'Weapon Efficiency',
+                nameTH: 'ประสิทธิภาพอาวุธ',
+                category: 'UTILITY',
+                description: 'Weapons fire faster.',
+                descriptionTH: 'อาวุธยิงเร็วขึ้น',
+                baseValue: 15,
+                unit: '% faster',
+                weight: 0.25,
+                maxStacks: 4,
+                apply: (game, value) => {
+                    game.player.weaponFireRateBonus = (game.player.weaponFireRateBonus || 0) + value / 100;
+                }
+            },
+            DOUBLE_UPGRADE: {
+                id: 'DOUBLE_UPGRADE',
+                name: 'Double Pick',
+                nameTH: 'เลือกสอง',
+                category: 'UTILITY',
+                description: 'Choose 2 upgrades per level.',
+                descriptionTH: 'เลือกอัพเกรด 2 อย่างต่อเลเวล',
+                baseValue: 1,
+                unit: ' extra pick',
+                weight: 0.05,
+                maxStacks: 1,
+                isMystical: true,
+                apply: (game, value) => {
+                    game.player.extraUpgradePicks = (game.player.extraUpgradePicks || 0) + value;
+                }
+            },
+            REROLL_COINS: {
+                id: 'REROLL_COINS',
+                name: 'Reroll Discount',
+                nameTH: 'ส่วนลดรีโรล',
+                category: 'UTILITY',
+                description: 'Reroll costs less.',
+                descriptionTH: 'ค่าใช้จ่ายรีโรลลดลง',
+                baseValue: 25,
+                unit: '% cheaper',
+                weight: 0.15,
+                maxStacks: 3,
+                apply: (game, value) => {
+                    game.player.rerollDiscount = (game.player.rerollDiscount || 0) + value / 100;
+                }
+            },
+
+            // ============= NEW CONSUMABLE CARDS =============
+            FULL_MANA: {
+                id: 'FULL_MANA',
+                name: 'Energy Boost',
+                category: 'CONSUMABLE',
+                description: 'Restore all energy immediately.',
+                baseValue: 100,
+                unit: '% energy',
+                weight: 0.12,
+                maxStacks: 999,
+                apply: (game, _value) => {
+                    game.player.energy = game.player.maxEnergy;
+                    game.spawnFloatingText(game.player.x, game.player.y, "ENERGY FULL!", '#00f0ff');
+                }
+            },
+            TIME_FREEZE: {
+                id: 'TIME_FREEZE',
+                name: 'Time Freeze',
+                category: 'CONSUMABLE',
+                description: 'Freeze all enemies for 3 seconds.',
+                baseValue: 3,
+                unit: 's freeze',
+                weight: 0.1,
+                maxStacks: 999,
+                apply: (game, value) => {
+                    game.enemies.forEach((e: any) => {
+                        if (!e.markedForDeletion) e.freeze(value);
+                    });
+                    game.spawnFloatingText(game.player.x, game.player.y, "TIME FROZEN!", '#ffffff');
+                }
+            },
+            MASS_HEAL: {
+                id: 'MASS_HEAL',
+                name: 'Mass Heal',
+                category: 'CONSUMABLE',
+                description: 'Heal 100% HP instantly.',
+                baseValue: 100,
+                unit: '% heal',
+                weight: 0.08,
+                maxStacks: 999,
+                apply: (game, _value) => {
+                    const healAmt = game.player.maxHp;
+                    game.player.hp = game.player.maxHp;
+                    game.spawnFloatingText(game.player.x, game.player.y, `+${Math.round(healAmt)} HP`, '#00ff00');
+                }
+            },
         };
 
         // Rarity definitions (7 tiers)
@@ -522,7 +913,7 @@ export class CardSystem {
 
         // Special rarities (Not in standard rotation)
         this.mysticalRarity = { name: 'Mystical', multiplier: 1, color: '#ff00ea' };
-        this.bossRarity = { name: 'Boss', multiplier: 15, color: '#ff0044' };
+        this._bossRarity = { name: 'Boss', multiplier: 15, color: '#ff0044' };
 
         // Player's acquired cards (for stacking)
         this.acquiredCards = {}; // { cardId: stackCount }
@@ -620,6 +1011,11 @@ export class CardSystem {
                     name: `${rarity.name} ${name} [Tier ${tier}]`,
                     color: rarity.color
                 });
+
+                // Check for synergies
+                if (game.synergySystem) {
+                    game.synergySystem.checkSynergies();
+                }
             }
         };
     }

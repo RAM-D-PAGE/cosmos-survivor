@@ -1,7 +1,10 @@
 import { CONFIG } from '../core/Config';
+import { Game } from '../core/Game';
+import { sanitize, buildSkillHtml } from '../core/Sanitizer';
 
 export class UIManager {
-    private game: any;
+    public currentLocale: 'EN' | 'TH' = 'EN';
+    private game: Game;
     private uiExpBar: HTMLElement | null;
     private uiExpText: HTMLElement | null;
     private uiGameTimer: HTMLElement | null;
@@ -71,6 +74,7 @@ export class UIManager {
         getBtn('resume-btn')?.addEventListener('click', () => this.game.togglePause());
         getBtn('manage-skills-btn')?.addEventListener('click', () => this.showSkillManagePanel());
 
+
         this.setupDifficultyButtons();
 
         getBtn('open-leaderboard-btn')?.addEventListener('click', () => {
@@ -86,8 +90,19 @@ export class UIManager {
         // Settings Panel
         getBtn('open-settings-btn')?.addEventListener('click', () => this.showSettingsPanel());
         getBtn('close-settings-btn')?.addEventListener('click', () => this.hideSettingsPanel());
-        getBtn('close-settings-btn')?.addEventListener('click', () => this.hideSettingsPanel());
+        getBtn('open-help-btn')?.addEventListener('click', () => this.showHelpPanel());
+        getBtn('close-help-btn')?.addEventListener('click', () => this.hideHelpPanel());
         this.setupSettingsPanel();
+
+        // Shop System
+        getBtn('open-shop-btn')?.addEventListener('click', () => this.showShop());
+        getBtn('close-shop-btn')?.addEventListener('click', () => this.hideShop());
+
+        // MultiPlayer System
+        getBtn('start-multiplayer-btn')?.addEventListener('click', () => this.showMultiPlayerMenu());
+        getBtn('create-room-btn')?.addEventListener('click', () => this.createRoom());
+        getBtn('join-room-btn')?.addEventListener('click', () => this.joinRoom());
+        getBtn('close-multiplayer-btn')?.addEventListener('click', () => this.hideMultiPlayerMenu());
 
         // Login System
         getBtn('login-btn')?.addEventListener('click', () => this.showLoginModal());
@@ -320,7 +335,15 @@ export class UIManager {
 
         if (shakeBtn && savedShake === '0') {
             shakeBtn.classList.remove('active');
+            shakeBtn.innerText = 'OFF';
             this.game.screenShakeEnabled = false;
+        } else {
+            // Default ON
+            if (shakeBtn) {
+                shakeBtn.classList.add('active');
+                shakeBtn.innerText = 'ON';
+            }
+            this.game.screenShakeEnabled = true;
         }
 
         const delayBtn = document.getElementById('delay-toggle-btn');
@@ -337,8 +360,6 @@ export class UIManager {
                 this.game.resumeCountdownEnabled = true;
             }
         }
-        shakeBtn.innerText = 'OFF';
-        this.game.screenShakeEnabled = false;
         const dmgBtn = document.getElementById('dmg-numbers-toggle-btn');
         const savedDmg = localStorage.getItem('cosmos_damage_numbers');
         if (dmgBtn && savedDmg === '0') {
@@ -444,7 +465,7 @@ export class UIManager {
         }
     }
 
-    // Skill icon mapping using emoji
+    // Skill icon mapping using emoji (expanded)
     getSkillIcon(skillId: string): string {
         const icons: Record<string, string> = {
             'BLACK_HOLE': '🕳️',
@@ -459,7 +480,7 @@ export class UIManager {
             'POISON_CLOUD': '☠️',
             'SHOCKWAVE': '💥',
             'GRAVITY_WELL': '🌌',
-            'PHOENIX_REBIRTH': '🔥',
+            'PHOENIX_REBIRTH': '🌟',
             'CLONE_ARMY': '👥',
             'ARMAGEDDON': '🌋',
             'TIME_REVERSAL': '⏪',
@@ -469,10 +490,30 @@ export class UIManager {
             'MIRROR_IMAGE': '🪞',
             'HEAL_AURA': '💚',
             'SPEED_BOOST': '⏩',
-            'ACID_SPRAY': '🤢',
+            'ACID_SPRAY': '🧪',
             'FROST_NOVA': '🥶',
-            'THUNDER_CLAP': '👏',
+            'THUNDER_CLAP': '⚡',
             'SHIELD_BASH': '🛡️',
+            'SLOW_FIELD': '🐌',
+            'QUICK_HEAL': '⛑️',
+            'MINI_EXPLOSION': '💥',
+            'PLASMA_BURST': '🔵',
+            'VOID_SLASH': '🗡️',
+            'ELECTRIC_FIELD': '🔌',
+            'EXPLOSIVE_SHOT': '🎯',
+            'ICE_SPIKE': '🧊',
+            'POISON_DART': '🗡️',
+            'MAGNETIC_PULL': '🧲',
+            'DIMENSION_RIFT': '🌀',
+            'CHRONO_FIELD': '⏳',
+            'SOUL_BIND': '🔗',
+            'COSMIC_ANNIHILATION': '🌠',
+            'INFINITY_LOOP': '♾️',
+            'QUANTUM_OVERDRIVE': '⚛️',
+            'VOID_ERASURE': '🕳️',
+            'BEAM_ERASURE': '🔦',
+            'CLOUD_PIERCING': '🌫️',
+            'DASH_SLASH': '💨',
         };
         return icons[skillId] || '✨';
     }
@@ -627,12 +668,17 @@ export class UIManager {
             const slotEl = document.querySelector(`.slot-manage[data-slot="${i}"]`) as HTMLElement;
             if (el && slotEl) {
                 const skill = active[i];
-                const icon = skill ? this.getSkillIcon(skill.id || skill.name) : '❌';
-                el.innerHTML = skill
-                    ? `<span style="font-size:20px; margin-right:8px;">${icon}</span>${skill.name}`
-                    : '<span style="color:#666;">Empty</span>';
-                el.style.color = skill ? skill.color : '#666';
-                slotEl.style.borderColor = skill ? skill.color : '#444';
+                // Use buildSkillHtml to safely construct HTML with colors/icons
+                if (skill) {
+                    const icon = this.getSkillIcon(skill.id || skill.name);
+                    el.innerHTML = buildSkillHtml(icon, skill.name, skill.color);
+                    el.style.color = sanitize(skill.color);
+                    slotEl.style.borderColor = sanitize(skill.color);
+                } else {
+                    el.innerHTML = '<span style="color:#666;">Empty</span>';
+                    el.style.color = '#666';
+                    slotEl.style.borderColor = '#444';
+                }
             }
         }
 
@@ -743,6 +789,7 @@ export class UIManager {
 
         document.getElementById('start-btn')?.classList.remove('hidden');
         document.getElementById('open-leaderboard-btn')?.classList.remove('hidden');
+        document.getElementById('auth-corner')?.classList.remove('hidden');
     }
 
     showDifficultySelect(): void {
@@ -763,6 +810,8 @@ export class UIManager {
         document.getElementById('dash-indicator')?.classList.remove('hidden');
         document.getElementById('skills-bar')?.classList.remove('hidden');
         document.getElementById('manage-skills-btn')?.classList.remove('hidden');
+        document.getElementById('pause-btn-container')?.classList.remove('hidden');
+        document.getElementById('auth-corner')?.classList.add('hidden');
         this.uiGameOver?.classList.add('hidden');
     }
 
@@ -773,6 +822,7 @@ export class UIManager {
         document.getElementById('dash-indicator')?.classList.add('hidden');
         document.getElementById('skills-bar')?.classList.add('hidden');
         document.getElementById('manage-skills-btn')?.classList.add('hidden');
+        document.getElementById('pause-btn-container')?.classList.add('hidden');
         this.uiUpgradeMenu?.classList.add('hidden');
         this.uiGameOver?.classList.add('hidden');
     }
@@ -789,6 +839,30 @@ export class UIManager {
         }
     }
 
+    // Handle Tab when overlays are open to resume correctly
+    handleGlobalTabToggle(): void {
+        const overlays = [
+            'settings-panel', 'skills-menu', 'shop-panel', 'upgrade-menu', 'leaderboard', 'login-modal'
+        ];
+        const anyOpen = overlays.some(id => !document.getElementById(id)?.classList.contains('hidden'));
+
+        if (anyOpen) {
+            // Close settings if open
+            this.hideSettingsPanel();
+            // Close skills menu (pause menu)
+            document.getElementById('skills-menu')?.classList.add('hidden');
+            // Resume game if it was paused
+            if (this.game.gameState === 'PAUSED') {
+                this.game.stateManager.setState('PLAYING');
+            } else {
+                // Otherwise toggle pause normally
+                this.game.togglePause();
+            }
+        } else {
+            this.game.togglePause();
+        }
+    }
+
     showUpgradeMenu(choices: any[]): void {
         if (!this.uiCardContainer) return;
         this.uiCardContainer.innerHTML = '';
@@ -799,6 +873,7 @@ export class UIManager {
             card.innerHTML = `
                 <h3 style="color:${choice.color}">${choice.name}</h3>
                 <p>${choice.description}</p>
+                ${choice.maxStacks ? `<div class="stack-badge" style="border-color:${choice.color}">${choice.stackCount || 0}/${choice.maxStacks}</div>` : ''}
             `;
 
             card.style.borderColor = choice.color;
@@ -814,47 +889,49 @@ export class UIManager {
             });
 
             card.addEventListener('click', () => {
-                choice.apply(this.game);
-                this.game.acquiredUpgrades.push({ name: choice.name, color: choice.color });
-                this.game.closeUpgradeMenu();
+                this.game.handleUpgradePicked(choice);
             });
 
             this.uiCardContainer!.appendChild(card);
         });
 
-        if (!document.getElementById('reroll-btn-container')) {
-            const container = document.createElement('div');
-            container.id = 'reroll-btn-container';
-            container.style.marginTop = '20px';
+        // Always render reroll button and bind to stateManager coins
+        const existing = document.getElementById('reroll-btn-container');
+        if (existing) existing.remove();
 
-            const btn = document.createElement('button');
-            btn.className = 'glow-btn';
-            btn.innerText = 'REROLL (10 COINS)';
-            btn.style.fontSize = '16px';
-            btn.style.padding = '10px 30px';
+        const container = document.createElement('div');
+        container.id = 'reroll-btn-container';
+        container.style.marginTop = '20px';
 
-            if (this.game.coins < 10) {
-                btn.style.borderColor = '#550000';
-                btn.style.color = '#aa0000';
-                btn.style.boxShadow = 'none';
-                btn.style.cursor = 'not-allowed';
-            }
+        const btn = document.createElement('button');
+        btn.className = 'glow-btn';
+        btn.innerText = 'REROLL (10 COINS)';
+        btn.style.fontSize = '16px';
+        btn.style.padding = '10px 30px';
 
-            btn.onclick = () => {
-                if (this.game.coins >= 10) {
-                    this.game.coins -= 10;
-                    this.game.audio.playClick();
-                    this.game.spawnFloatingText(this.game.player.x, this.game.player.y, "-10 COINS", "#ffaa00");
-                    this.game.showUpgradeMenu();
-                    if (this.game.ui) this.game.ui.updateCoins(this.game.coins);
-                } else {
-                    this.game.spawnFloatingText(this.game.player.x, this.game.player.y, "NOT ENOUGH COINS!", "#ff0000");
-                }
-            };
-
-            container.appendChild(btn);
-            this.uiUpgradeMenu?.appendChild(container);
+        const coins = this.game.stateManager?.coins ?? this.game.coins ?? 0;
+        if (coins < 10) {
+            btn.style.borderColor = '#550000';
+            btn.style.color = '#aa0000';
+            btn.style.boxShadow = 'none';
+            btn.style.cursor = 'not-allowed';
         }
+
+        btn.onclick = () => {
+            const coinsNow = this.game.stateManager ? this.game.stateManager.coins : this.game.coins;
+            if (coinsNow >= 10) {
+                if (this.game.stateManager) this.game.stateManager.coins -= 10; else this.game.coins -= 10;
+                this.game.audio.playClick();
+                this.game.spawnFloatingText(this.game.player.x, this.game.player.y, "-10 COINS", "#ffaa00");
+                this.game.rerollUpgrades();
+                this.updateCoins(this.game.stateManager ? this.game.stateManager.coins : this.game.coins);
+            } else {
+                this.game.spawnFloatingText(this.game.player.x, this.game.player.y, "NOT ENOUGH COINS!", "#ff0000");
+            }
+        };
+
+        container.appendChild(btn);
+        this.uiUpgradeMenu?.appendChild(container);
 
         this.uiUpgradeMenu?.classList.remove('hidden');
     }
@@ -884,7 +961,17 @@ export class UIManager {
             { label: isTH ? 'HP สูงสุด' : 'Max HP', val: Math.round(p.maxHp) },
             { label: isTH ? 'ฟื้นฟู HP' : 'HP Regen', val: `${p.hpRegen.toFixed(1)}/s` },
             { label: isTH ? 'ความเร็ว' : 'Speed', val: Math.round(p.maxSpeed) },
-            { label: isTH ? 'แม่เหล็ก' : 'Magnet', val: `${Math.round(p.pickupRange)}px` }
+            { label: isTH ? 'แม่เหล็ก' : 'Magnet', val: `${Math.round(p.pickupRange)}px` },
+            { label: isTH ? 'คริ' : 'Crit Chance', val: `${Math.round((p.critChance || 0) * 100)}%` },
+            { label: isTH ? 'ทะลุ' : 'Piercing', val: p.piercing || 0 },
+            { label: isTH ? 'ดีดกระสุน' : 'Ricochet', val: p.ricochet || 0 },
+            { label: isTH ? 'ดูดเลือด' : 'Life Steal', val: `${Math.round((p.lifeSteal || 0) * 100)}%` },
+            { label: isTH ? 'คูณดาเมจ' : 'Damage Mult', val: (p.damageMultiplier || 1).toFixed(2) + 'x' },
+            { label: isTH ? 'เกราะ' : 'Armor', val: `${Math.round((p.armor || 0) * 100)}%` },
+            { label: isTH ? 'ต้านทานดาเมจ' : 'Damage Reduction', val: `${Math.round((p.damageReduction || 0) * 100)}%` },
+            { label: isTH ? 'ขนาดกระสุน' : 'Projectile Size', val: (p.projectileSize || 1).toFixed(2) + 'x' },
+            { label: isTH ? 'ระเบิด' : 'Explosive', val: p.explosiveProjectiles ? (isTH ? 'ใช่' : 'ON') : (isTH ? 'ไม่' : 'OFF') },
+            { label: isTH ? 'ติดตาม' : 'Homing', val: p.homingProjectiles ? (isTH ? 'ใช่' : 'ON') : (isTH ? 'ไม่' : 'OFF') },
         ];
 
         stats.forEach(s => {
@@ -913,15 +1000,16 @@ export class UIManager {
         contentDiv.appendChild(col2);
     }
 
-    update(dt: number): void {
+    update(_dt: number): void {
         const setText = (el: HTMLElement | null, txt: string) => { if (el && el.innerText !== txt) el.innerText = txt; };
 
-        const level = this.game.level;
-        const exp = this.game.exp;
-        const expNext = this.game.expToNextLevel;
+        // Use stateManager for authoritative EXP values
+        const level = this.game.stateManager?.level ?? this.game.level;
+        const exp = this.game.stateManager?.exp ?? this.game.exp;
+        const expNext = this.game.stateManager?.expToNextLevel ?? this.game.expToNextLevel;
         setText(this.uiExpText, `LVL ${level} [${Math.floor(exp)} / ${expNext} XP]`);
 
-        const expPct = Math.min((exp / expNext) * 100, 100);
+        const expPct = Math.min(expNext > 0 ? (exp / expNext) * 100 : 0, 100);
         if (this.uiExpBar) this.uiExpBar.style.width = `${expPct}%`;
 
         const totalSeconds = Math.floor(this.game.mapSystem.totalTime || 0);
@@ -929,22 +1017,22 @@ export class UIManager {
         const secs = (totalSeconds % 60).toString().padStart(2, '0');
         setText(this.uiGameTimer, `${mins}:${secs}`);
 
-        if (this.game.mapSystem.currentZone) {
-            const zoneTime = this.game.mapSystem.timer;
-            const zoneDuration = this.game.mapSystem.currentZone.duration;
+        if (this.game.mapSystem.currentZoneData) {
+            const zoneTime = this.game.mapSystem.timerValue;
+            const zoneDuration = this.game.mapSystem.currentZoneData.duration;
             const zonePct = Math.min((zoneTime / zoneDuration) * 100, 100);
             if (this.uiZoneBar) this.uiZoneBar.style.width = `${zonePct}%`;
 
             let label = `ZONE ${this.game.mapSystem.zoneCount + 1}`;
             let color = "white";
-            if (this.game.mapSystem.waitingForKill) {
+            if (this.game.mapSystem.isWaitingForKill) {
                 label = "STAGE BOSS DETECTED";
                 color = "#ff0000";
-            } else if (this.game.mapSystem.miniBossSpawned && zonePct < 100 && zonePct > 50) {
+            } else if (this.game.mapSystem.isMiniBossSpawned && zonePct < 100 && zonePct > 50) {
                 label = "MINI BOSS ACTIVE";
                 color = "#ff00aa";
             } else {
-                const debuff = this.game.mapSystem.currentZone.debuff;
+                const debuff = this.game.mapSystem.currentZoneData.debuff;
                 if (debuff && debuff !== 'NONE') {
                     label += ` [${debuff}]`;
                     color = "#ffaa00";
@@ -955,7 +1043,7 @@ export class UIManager {
 
             const zoneNameEl = document.getElementById('current-zone-name');
             if (zoneNameEl) {
-                const zoneName = this.game.mapSystem.currentZone.name || "UNKNOWN SECTOR";
+                const zoneName = this.game.mapSystem.currentZoneData.name || "UNKNOWN SECTOR";
                 if (zoneNameEl.innerText !== zoneName) zoneNameEl.innerText = zoneName;
             }
         }
@@ -1196,7 +1284,13 @@ export class UIManager {
             const diffConfig = (CONFIG.DIFFICULTY as any)[s.difficulty];
             const diffName = diffConfig?.name || s.difficulty || 'ปกติ';
             const color = diffConfig?.color || '#fff';
-            li.innerHTML = `<b>${i + 1}. ${s.name}</b> <span style="color:${color}">[${diffName}]</span> - ${s.score} <span style="font-size:12px; color:#888">(LVL ${s.level})</span>`;
+
+            // XSS Protection: Escape name
+            const div = document.createElement('div');
+            div.innerText = s.name;
+            const safeName = div.innerHTML;
+
+            li.innerHTML = `<b>${i + 1}. ${safeName}</b> <span style="color:${color}">[${diffName}]</span> - ${s.score} <span style="font-size:12px; color:#888">(LVL ${s.level})</span>`;
             list.appendChild(li);
         });
 
@@ -1246,8 +1340,8 @@ export class UIManager {
         }
 
         // Hazard Debuffs from MapSystem
-        if (this.game.mapSystem && this.game.mapSystem.currentZone) {
-            const hazard = this.game.mapSystem.currentZone.debuff;
+        if (this.game.mapSystem && this.game.mapSystem.currentZoneData) {
+            const hazard = this.game.mapSystem.currentZoneData.debuff;
             // hazard is a string like 'SLOW', 'CORROSION', etc.
             if (hazard && hazard !== 'NONE') {
                 let name = hazard;
@@ -1270,4 +1364,143 @@ export class UIManager {
         });
     }
 
+    // Shop Methods
+    showShop(): void {
+        document.getElementById('shop-panel')?.classList.remove('hidden');
+        this.uiMainMenu?.classList.add('hidden');
+        // Pause game when opening shop
+        this.game.isPaused = true;
+        this.populateShop();
+    }
+
+    hideShop(): void {
+        document.getElementById('shop-panel')?.classList.add('hidden');
+
+        // Resume countdown if enabled in settings
+        if (this.game.resumeCountdownEnabled) {
+            let count = 3;
+            const countdownEl = document.createElement('div');
+            countdownEl.style.position = 'absolute';
+            countdownEl.style.top = '50%';
+            countdownEl.style.left = '50%';
+            countdownEl.style.transform = 'translate(-50%, -50%)';
+            countdownEl.style.fontSize = '80px';
+            countdownEl.style.fontFamily = 'Rajdhani, sans-serif';
+            countdownEl.style.color = '#fff';
+            countdownEl.style.textShadow = '0 0 20px #00f0ff';
+            countdownEl.style.zIndex = '2000';
+            countdownEl.innerText = count.toString();
+            document.body.appendChild(countdownEl);
+
+            const interval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownEl.innerText = count.toString();
+                    this.game.audio.playClick();
+                } else {
+                    clearInterval(interval);
+                    if (document.body.contains(countdownEl)) {
+                        document.body.removeChild(countdownEl);
+                    }
+                    this.game.isPaused = false;
+                }
+            }, 1000);
+        } else {
+            this.game.isPaused = false;
+        }
+
+        if (this.game.gameState === 'MENU') {
+            this.showMainMenu();
+        }
+    }
+
+    populateShop(): void {
+        const container = document.getElementById('shop-items-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const items = this.game.shopSystem.getAllItems();
+        items.forEach((item: any) => {
+            const el = document.createElement('div');
+            el.className = 'shop-item';
+
+            const purchases = this.game.shopSystem.getPurchasedCount(item.id);
+            const maxPurchases = item.maxPurchases ?? -1;
+            const isSoldOut = maxPurchases !== -1 && purchases >= maxPurchases;
+
+            const name = this.currentLocale === 'TH' ? (item.nameTH || item.name) : item.name;
+            const desc = this.currentLocale === 'TH' ? (item.descriptionTH || item.description) : item.description;
+
+            el.innerHTML = `
+                <h3>${name}</h3>
+                <p>${desc}</p>
+                <div class="price">💰 ${item.price}</div>
+                <button class="glow-btn" ${isSoldOut ? 'disabled' : ''} style="${isSoldOut ? 'background:#333;border-color:#555;color:#888' : ''}">
+                    ${isSoldOut ? (this.currentLocale === 'TH' ? 'หมดแล้ว' : 'SOLD OUT') : (this.currentLocale === 'TH' ? 'ซื้อ' : 'BUY')}
+                </button>
+            `;
+
+            if (isSoldOut) {
+                el.style.opacity = '0.6';
+            } else {
+                const btn = el.querySelector('button');
+                btn?.addEventListener('click', () => {
+                    if (this.game.shopSystem.purchaseItem(item.id)) {
+                        this.updateShopCoinDisplay();
+                        this.populateShop();
+                    }
+                });
+            }
+
+            container.appendChild(el);
+        });
+
+        this.updateShopCoinDisplay();
+    }
+
+    updateShopCoinDisplay(): void {
+        const el = document.getElementById('shop-coin-display');
+        // Handle case where stateManager might be missing in type def but present in runtime
+        const coins = this.game.stateManager ? this.game.stateManager.coins : 0;
+        if (el) el.innerText = coins.toString();
+    }
+
+    // MultiPlayer Methods
+    showMultiPlayerMenu(): void {
+        document.getElementById('multiplayer-menu')?.classList.remove('hidden');
+        this.uiMainMenu?.classList.add('hidden');
+    }
+
+    hideMultiPlayerMenu(): void {
+        document.getElementById('multiplayer-menu')?.classList.add('hidden');
+        this.showMainMenu();
+    }
+
+    createRoom(): void {
+        console.log("[UI] Create Room Clicked");
+        if (this.game.multiPlayerSystem) {
+            const name = this.game.loginSystem?.username || `Guest_${Math.floor(Math.random() * 1000)}`;
+            this.game.multiPlayerSystem.createRoom(name);
+        }
+    }
+
+    joinRoom(): void {
+        const input = document.getElementById('join-room-input') as HTMLInputElement;
+        const roomId = input?.value;
+        if (roomId && this.game.multiPlayerSystem) {
+            const name = this.game.loginSystem?.username || `Guest_${Math.floor(Math.random() * 1000)}`;
+            this.game.multiPlayerSystem.joinRoom(roomId, name);
+        }
+    }
+
+    // Help Panel Methods
+    showHelpPanel(): void {
+        this.uiMainMenu?.classList.add('hidden');
+        document.getElementById('help-panel')?.classList.remove('hidden');
+    }
+
+    hideHelpPanel(): void {
+        document.getElementById('help-panel')?.classList.add('hidden');
+        this.showMainMenu();
+    }
 }

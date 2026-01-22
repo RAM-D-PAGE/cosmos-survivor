@@ -1,7 +1,8 @@
 import { CONFIG } from '../core/Config';
-import { EnemyStats } from '../core/Config'; // Assuming exported
+import { EnemyStats } from '../core/Config';
+import { ICollidable } from '../core/Types';
 
-export class Enemy {
+export class Enemy implements ICollidable {
     private game: any;
     public x: number;
     public y: number;
@@ -483,9 +484,16 @@ export class Enemy {
     die(): void {
         this.markedForDeletion = true;
         const expMult = this.game.mapSystem?.getExpMultiplier() || 1;
-        const finalValue = Math.floor(this.value * expMult);
+        const finalValue = Math.floor(this.value * expMult * (1 + (this.game.player.expBonus || 0)));
         this.game.spawnGem(this.x, this.y, finalValue);
         this.game.audio.playExplosion();
+
+        // Health on Kill
+        if (this.game.player.healthOnKill > 0) {
+            const heal = this.game.player.healthOnKill;
+            this.game.player.hp = Math.min(this.game.player.maxHp, this.game.player.hp + heal);
+            this.game.spawnFloatingText(this.game.player.x, this.game.player.y, `+${heal}`, '#00ff88');
+        }
 
         // Bomber or Explosive Elite explodes
         if (this.type === 'bomber' || (this.isElite && this.eliteModifiers.includes('EXPLOSIVE'))) {
@@ -495,8 +503,9 @@ export class Enemy {
         // Elite drop chance for rare loot
         if (this.isElite) {
             this.game.spawnFloatingText(this.x, this.y - 30, "ELITE DEFEATED!", "#ffaa00");
-            // 10% chance to drop skill
-            if (Math.random() < 0.1) {
+            // 10% chance to drop skill + Luck check
+            const dropChance = 0.1 + (this.game.player.luck || 0) * 0.01;
+            if (Math.random() < dropChance) {
                 this.game.skillSystem?.generateBossSkillDrop();
             }
             // Elite always drops coin

@@ -34,8 +34,14 @@ export class AutoWeapon {
     }
 
     initStats(): void {
-        this.fireInterval = 1 / (this.config.fireRate || 1);
-        this.damage = this.config.damage || 5;
+        const fireRateMult = this.game.player.fireRateMultiplier || 1.0;
+        this.fireInterval = 1 / ((this.config.fireRate || 1) * fireRateMult);
+
+        // Scale damage slightly with player level to keep old weapons relevant
+        // This is a simple scaling: +10% base damage per 5 player levels
+        const levelBonus = 1 + (Math.floor(this.game.player.level / 5) * 0.1);
+
+        this.damage = (this.config.damage || 5) * levelBonus;
         this.range = this.config.range || 300;
         this.color = this.config.color || '#ffffff';
         this.type = this.config.type || 'ORBITAL';
@@ -51,12 +57,48 @@ export class AutoWeapon {
         // Action Logic
         this.shootTimer += dt;
         if (this.shootTimer >= this.fireInterval) {
-            if (this.type === 'HEALER') {
-                this.attemptHeal();
-            } else if (this.type === 'DECOY') {
-                this.attemptSpawnDecoy();
-            } else {
-                this.attemptShoot();
+            switch (this.type) {
+                case 'HEALER':
+                    this.attemptHeal();
+                    break;
+                case 'DECOY':
+                    this.attemptSpawnDecoy();
+                    break;
+                case 'SEEKER':
+                    this.attemptSeeker();
+                    break;
+                case 'BEAM':
+                    this.attemptBeam();
+                    break;
+                case 'SHOTGUN':
+                    this.attemptShotgun();
+                    break;
+                case 'SNIPER':
+                    this.attemptSniper();
+                    break;
+                case 'MINIGUN':
+                    this.attemptMinigun();
+                    break;
+                case 'EXPLOSIVE':
+                    this.attemptExplosive();
+                    break;
+                case 'FREEZE':
+                    this.attemptFreeze();
+                    break;
+                case 'POISON':
+                    this.attemptPoison();
+                    break;
+                case 'LASER':
+                    this.attemptLaser();
+                    break;
+                case 'ORBIT_BLADE':
+                    this.attemptOrbitBlade();
+                    break;
+                case 'MISSILE':
+                    this.attemptMissile();
+                    break;
+                default:
+                    this.attemptShoot();
             }
         }
     }
@@ -110,8 +152,284 @@ export class AutoWeapon {
 
         if (closest) {
             const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
-            // Projectile size/damage scales with level implicitly via damage stat
             this.game.spawnProjectile(this.x, this.y, angle, 600, this.damage);
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptSeeker(): void {
+        // Homing missiles
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            const proj = this.game.spawnProjectile(this.x, this.y, angle, 400, this.damage);
+            if (proj) proj.isHoming = true; // Mark as homing
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptBeam(): void {
+        // Continuous beam weapon
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            // Beam: fast, piercing projectile
+            this.game.spawnProjectile(this.x, this.y, angle, 1000, this.damage * 0.7);
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptShotgun(): void {
+        // Spread shot
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const baseAngle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            // Fire 5 projectiles in spread
+            for (let i = 0; i < 5; i++) {
+                const spread = (i - 2) * 0.15;
+                this.game.spawnProjectile(this.x, this.y, baseAngle + spread, 500, this.damage * 0.6);
+            }
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptSniper(): void {
+        // High damage, slow fire
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range * 1.5 && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            this.game.spawnProjectile(this.x, this.y, angle, 1200, this.damage * 3); // 3x damage
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptMinigun(): void {
+        // Very fast, low damage
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            this.game.spawnProjectile(this.x, this.y, angle, 700, this.damage * 0.4); // Low damage
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptExplosive(): void {
+        // Explosive rounds
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            const proj = this.game.spawnProjectile(this.x, this.y, angle, 450, this.damage);
+            if (proj) proj.isExplosive = true; // Mark as explosive
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptFreeze(): void {
+        // Freezing shots
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            const proj = this.game.spawnProjectile(this.x, this.y, angle, 550, this.damage);
+            if (proj) proj.isFreezing = true; // Mark as freezing
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptPoison(): void {
+        // Poison DoT
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            const proj = this.game.spawnProjectile(this.x, this.y, angle, 500, this.damage);
+            if (proj) proj.isPoison = true; // Mark as poison
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptLaser(): void {
+        // Piercing laser
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            const proj = this.game.spawnProjectile(this.x, this.y, angle, 900, this.damage);
+            if (proj) proj.isPiercing = true; // Mark as piercing
+            this.shootTimer = 0;
+        }
+    }
+
+    attemptOrbitBlade(): void {
+        // Spinning blade that orbits
+        // This is handled differently - creates persistent blade effect
+        if (!this.game.skillSystem) return;
+
+        // Create orbiting blade effect
+        this.game.skillSystem.activeEffects.push({
+            type: 'ORBIT_BLADE',
+            angle: this.angle,
+            timer: 10,
+            damage: this.damage,
+            radius: 80,
+            color: this.color,
+            x: this.x,
+            y: this.y,
+            update: (dt: number, g: any) => {
+                // Blade orbits around weapon position
+            }
+        });
+
+        this.shootTimer = 0;
+    }
+
+    attemptMissile(): void {
+        // Slow but powerful missile
+        let closest: any = null;
+        let minDist = Infinity;
+
+        this.game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < this.range * 1.2 && dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        });
+
+        if (closest) {
+            const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+            const proj = this.game.spawnProjectile(this.x, this.y, angle, 350, this.damage * 2.5);
+            if (proj) {
+                proj.isHoming = true;
+                proj.isExplosive = true;
+            }
             this.shootTimer = 0;
         }
     }

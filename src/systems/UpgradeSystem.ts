@@ -1,8 +1,8 @@
 import { CardSystem } from './CardSystem';
 
 export class UpgradeSystem {
-    private game: any;
-    private cardSystem: CardSystem;
+    private readonly game: any;
+    private readonly cardSystem: CardSystem;
 
     constructor(game: any) {
         this.game = game;
@@ -13,78 +13,92 @@ export class UpgradeSystem {
         const choices = [];
 
         for (let i = 0; i < count; i++) {
-            const rand = Math.random();
-
-            // 30% chance: Weapon upgrade (if weapons exist)
-            // DISABLED per user feedback: We rely on picking duplicate weapons/skills for upgrades.
-            /*
-            if (this.game.weaponSystem &&
-                this.game.weaponSystem.activeWeapons.length > 0 &&
-                rand < 0.15) {
-
-                const weapon = this.game.weaponSystem.activeWeapons[
-                    Math.floor(Math.random() * this.game.weaponSystem.activeWeapons.length)
-                ];
-                choices.push(this.createWeaponUpgrade(weapon));
-            }
-            */
-            // Adjusted logic:
-            // 25% chance: New weapon (if slots available)
-            // 50% chance: Skill
-            // Remaining: Passive
-            if (false) { } // Placeholder to keep else-if structure valid or we can refactor.
-
-            // 25% chance: New weapon (if slots available)
-            else if (this.game.weaponSystem &&
-                this.game.weaponSystem.activeWeapons.length < this.game.weaponSystem.maxWeapons &&
-                rand < 0.30) {
-
-                choices.push(this.game.weaponSystem.generateWeapon());
-            }
-            // 15% chance: Skill (if skill system exists and slots available)
-            // 30% chance: Skill (Increased chance for skills)
-            else if (this.game.skillSystem &&
-                this.game.skillSystem.activeSkills.length < this.game.skillSystem.maxSkills &&
-                rand < 0.60) {
-
-                const skill = this.game.skillSystem.generateRandomSkill('UNCOMMON');
-                if (skill) {
-                    choices.push(this.createSkillCard(skill));
-                } else {
-                    choices.push(this.cardSystem.generateCard());
-                }
-            }
-            // Remaining: Passive card
-            else {
-                choices.push(this.cardSystem.generateCard());
-            }
+            const choice = this.generateSingleChoice(Math.random());
+            if (choice) choices.push(choice);
         }
         // A simple way: Add a "Reroll" card that, when clicked, deducts coins and refreshes choices.
 
         const rerollCost = 50;
         if (this.game.coins >= rerollCost) {
-            choices.push({
-                id: 'REROLL_CARD',
-                name: 'REROLL',
-                description: `Cost: ${rerollCost} Coins<br>Refresh all choices`,
-                color: '#ffff00',
-                isReroll: true,
-                cost: rerollCost,
-                apply: (g: any) => {
-                    if (g.coins >= rerollCost) {
-                        g.coins -= rerollCost;
-                        g.ui?.updateCoins(g.coins);
-                        // Refresh logic:
-                        // This requires the UI to re-call getChoices.
-                        // We might need to handle this in UIManager or Game.
-                        // For now, let's signal the Game to refresh upgrades.
-                        g.rerollUpgrades();
-                    }
-                }
-            });
+            choices.push(this.createRerollCard(rerollCost));
         }
 
         return choices;
+    }
+
+    createRerollCard(cost: number): any {
+        return {
+            id: 'REROLL_CARD',
+            name: 'REROLL',
+            description: `Cost: ${cost} Coins<br>Refresh all choices`,
+            color: '#ffff00',
+            isReroll: true,
+            cost: cost,
+            apply: (g: any) => {
+                if (g.coins >= cost) {
+                    g.coins -= cost;
+                    g.ui?.updateCoins(g.coins);
+                    // Signal the Game to refresh upgrades
+                    g.rerollUpgrades();
+                }
+            }
+        };
+    }
+
+    getMysticalChoices(count = 3): any[] {
+        const choices = [];
+        for (let i = 0; i < count; i++) {
+            choices.push(this.cardSystem.generateMysticalCard());
+        }
+        return choices;
+    }
+
+    private shouldOfferWeapon(rand: number): boolean {
+        return this.game.weaponSystem &&
+            this.game.weaponSystem.activeWeapons.length < this.game.weaponSystem.maxWeapons &&
+            rand < 0.3;
+    }
+
+    private generateSingleChoice(rand: number): any {
+        // 25% chance: New weapon (if slots available)
+        if (this.shouldOfferWeapon(rand)) {
+            return this.game.weaponSystem.generateWeapon();
+        }
+        // 30% chance: Skill (if skill system exists and slots available)
+        else if (this.game.skillSystem &&
+            this.game.skillSystem.activeSkills.length < this.game.skillSystem.maxSkills &&
+            rand < 0.6) {
+
+            let skill = this.game.skillSystem.generateRandomSkill('UNCOMMON');
+
+            // Filter maxed skills (Max 3 stacks)
+            let attempts = 0;
+
+            // Helper to check if maxed
+            const checkMaxed = (id: string) => {
+                const def = this.game.skillSystem.skillDefinitions[id];
+                const max = def ? (def.maxStacks || 3) : 3;
+                const active = this.game.skillSystem.activeSkills.find((s: any) => s.id === id);
+                const bag = this.game.skillSystem.bagSkills.find((s: any) => s.id === id);
+                const existing = active || bag;
+                return existing && (existing.count >= max);
+            };
+
+            while (skill && checkMaxed(skill.id) && attempts < 10) {
+                skill = this.game.skillSystem.generateRandomSkill('UNCOMMON');
+                attempts++;
+            }
+
+            if (skill && !checkMaxed(skill.id)) {
+                return this.createSkillCard(skill);
+            } else {
+                return this.cardSystem.generateCard();
+            }
+        }
+        // Remaining: Passive card
+        else {
+            return this.cardSystem.generateCard();
+        }
     }
 
     createWeaponUpgrade(weapon: any): any {
@@ -115,47 +129,55 @@ export class UpgradeSystem {
             'LEGENDARY': '#ff8000'
         };
 
-        const tierMap: Record<string, string> = {
-            'UNCOMMON': 'II',
-            'RARE': 'III',
-            'EPIC': 'IV',
-            'LEGENDARY': 'V',
-            'MYTHIC': 'VI',
-            'GOD': 'VII',
-            'BOSS': 'BOSS'
-        };
 
-        const tier = tierMap[skillDef.rarity] || 'I';
 
         const isTH = this.game.ui?.currentLocale === 'TH';
         const name = isTH && skillDef.nameTH ? skillDef.nameTH : skillDef.name;
-        const rawDesc = isTH && skillDef.descriptionTH ? skillDef.descriptionTH : (skillDef.descriptionEN || skillDef.description);
+        // Check current stack count
+        let currentCount = 0;
+        const active = this.game.skillSystem.activeSkills.find((s: any) => s.id === skillDef.id);
+        const bag = this.game.skillSystem.bagSkills.find((s: any) => s.id === skillDef.id);
+        if (active) currentCount = active.count || 1;
+        if (bag) currentCount = bag.count || 1;
 
-        // Append dynamic stats logic
+        let desc = isTH && skillDef.descriptionTH ? skillDef.descriptionTH : (skillDef.descriptionEN || skillDef.description);
+
+        const maxStacks = skillDef.maxStacks || 3;
+
+        if (currentCount > 0) {
+            desc = `<b>Level ${currentCount + 1} Upgrade</b><br>Stack this card to boost power!`;
+            if (currentCount === maxStacks - 1) {
+                desc += `<br><span style="color:#00ff00">MAX LEVEL BONUS: Cooldown Reduction!</span>`;
+            } else {
+                desc += `<br><span style="color:#00ccff">Bonus: Stats Increased</span>`;
+            }
+        }
+
+        // Add stats info
         let statsInfo = '';
         const scaledDamage = this.game.skillSystem.getScaledDamage(skillDef.damage || 0);
-        const scaledDps = this.game.skillSystem.getScaledDamage(skillDef.damagePerSec || 0);
-
-        if (scaledDamage > 0) statsInfo += `<br><span style="color:#ffaa00">Damage: ${scaledDamage}</span>`;
-        if (scaledDps > 0) statsInfo += `<br><span style="color:#00ff00">Damage/Sec: ${scaledDps}</span>`;
-        if (skillDef.duration) statsInfo += `<br><span style="color:#00ccff">Duration: ${skillDef.duration}s</span>`;
-        if (skillDef.cooldown) statsInfo += `<br><span style="color:#888">Cooldown: ${skillDef.cooldown}s</span>`;
+        if (scaledDamage > 0) statsInfo += `<br><span style="color:#ffaa00">Dmg: ${scaledDamage}</span>`;
 
         return {
             id: skillDef.id,
-            name: `${name} [Tier ${tier}]`,
-            description: `<b>${skillDef.rarity} SKILL</b><br>${rawDesc}${statsInfo}`,
+            name: `${name} [${currentCount}/${maxStacks}]`,
+            description: `<b>${skillDef.rarity} SKILL</b><br>${desc}${statsInfo}`,
             color: rarityColors[skillDef.rarity] || '#ffffff',
+            rarity: skillDef.rarity,
+            stackCount: currentCount,
+            maxStacks: maxStacks,
             apply: (g: any) => {
                 g.skillSystem.equipSkill(skillDef.id);
-
                 g.acquiredUpgrades.push({
-                    name: `Skill: ${skillDef.name} [Tier ${tier}]`,
+                    name: `Skill: ${skillDef.name} [Lv ${currentCount + 1}]`,
                     color: skillDef.color
                 });
+                if (g.synergySystem) g.synergySystem.checkSynergies();
+                if (g.comboManager) g.comboManager.checkCombos();
             }
         };
     }
+
 
     reset(): void {
         this.cardSystem.reset();

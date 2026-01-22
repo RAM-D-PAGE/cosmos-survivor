@@ -1,4 +1,6 @@
-export class Gem {
+import { ICollidable } from '../core/Types';
+
+export class Gem implements ICollidable {
     private game: any;
     public x: number;
     public y: number;

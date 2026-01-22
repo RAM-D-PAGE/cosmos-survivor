@@ -32,6 +32,49 @@ export interface BossStats {
     SPAWN_TIME_PCT?: number;
 }
 
+export enum SkillType {
+    AOE_DOT_PULL = 'AOE_DOT_PULL',
+    AOE_SCATTER = 'AOE_SCATTER',
+    GLOBAL_FREEZE = 'GLOBAL_FREEZE',
+    AOE_PULL_EXPLODE = 'AOE_PULL_EXPLODE',
+    AOE_SCATTER_INSTANT = 'AOE_SCATTER_INSTANT',
+    SELF_BUFF = 'SELF_BUFF',
+    AOE_EXECUTE = 'AOE_EXECUTE',
+    PROJECTILE_EXPLODE = 'PROJECTILE_EXPLODE',
+    PROJECTILE_FREEZE = 'PROJECTILE_FREEZE',
+    AOE_ZONE = 'AOE_ZONE',
+    AOE_KNOCKBACK = 'AOE_KNOCKBACK',
+    PERSISTENT_PULL = 'PERSISTENT_PULL',
+    SELF_REVIVE = 'SELF_REVIVE',
+    SUMMON_CLONES = 'SUMMON_CLONES',
+    SCREEN_CLEAR = 'SCREEN_CLEAR',
+    REWIND = 'REWIND',
+    DAMAGE_MULT = 'DAMAGE_MULT',
+    CHAIN_DETONATE = 'CHAIN_DETONATE',
+    ORBIT_DAMAGE = 'ORBIT_DAMAGE',
+    DECOY = 'DECOY',
+    REGEN_ZONE = 'REGEN_ZONE',
+    BUFF_SPEED = 'BUFF_SPEED',
+    CONE_DOT = 'CONE_DOT',
+    FREEZE_AOE = 'FREEZE_AOE',
+    AOE_STUN = 'AOE_STUN',
+    STUN_AOE = 'STUN_AOE',
+    BLINK = 'BLINK',
+    VOID_ERASURE = 'VOID_ERASURE',
+    BEAM_ERASURE = 'BEAM_ERASURE',
+    DASH_SLASH = 'DASH_SLASH'
+}
+
+export enum Rarity {
+    COMMON = 'COMMON',
+    UNCOMMON = 'UNCOMMON',
+    RARE = 'RARE',
+    EPIC = 'EPIC',
+    LEGENDARY = 'LEGENDARY',
+    MYTHIC = 'MYTHIC',
+    GOD = 'GOD'
+}
+
 export interface SkillDef {
     id?: string;
     name: string;
@@ -40,7 +83,8 @@ export interface SkillDef {
     damage?: number;
     duration?: number;
     color: string;
-    rarity: 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC' | 'GOD';
+    rarity: Rarity;
+    maxStacks?: number;
     radius?: number;
     speed?: number;
     freezeDuration?: number;
@@ -67,24 +111,28 @@ export interface SkillDef {
     stunDuration?: number;
     coneAngle?: number;
     range?: number;
+    slowPercent?: number;
+    vineCount?: number;
+    damageReduction?: number;
+    width?: number;
 }
 
 export const CONFIG = {
     GAME: {
         DIFFICULTY_SCALING_PER_MINUTE: 0.5,
-        ENEMY_SPAWN_INTERVAL: 2.0,
+        ENEMY_SPAWN_INTERVAL: 2,
         MAX_WEAPONS: 10
     },
     SUPABASE: SUPABASE_CONFIG,
     DIFFICULTY: {
-        EASY: { name: 'ง่าย', mult: 1.0, color: '#00ff00', spawnRate: 1.5, expMult: 1.0 },
-        NORMAL: { name: 'ปกติ', mult: 1.5, color: '#ffffff', spawnRate: 1.0, expMult: 0.8 },
-        HARD: { name: 'ยาก', mult: 2.0, color: '#ffaa00', spawnRate: 0.8, expMult: 0.7 },
-        ABYSS: { name: 'นรก', mult: 3.0, color: '#ff0088', spawnRate: 0.6, expMult: 0.6 },
-        HELL: { name: 'อเวจี', mult: 5.0, color: '#ff0000', spawnRate: 0.4, expMult: 0.5 },
-        IMPOSSIBLE: { name: 'เป็นไปไม่ได้', mult: 10.0, color: '#aa00ff', spawnRate: 0.3, expMult: 0.4 },
-        GOD: { name: 'ท้าทายเทพ', mult: 100.0, color: '#ffff00', spawnRate: 0.2, expMult: 0.3 },
-        RULER: { name: 'ท้าทายผู้คุมกฏ', mult: 1000.0, color: '#ff00ff', spawnRate: 0.1, expMult: 0.2 }
+        EASY: { name: 'ง่าย', mult: 1, color: '#00ff00', spawnRate: 1.5, expMult: 1 },
+        NORMAL: { name: 'ปกติ', mult: 1.5, color: '#ffffff', spawnRate: 1, expMult: 0.8 },
+        HARD: { name: 'ยาก', mult: 2, color: '#ffaa00', spawnRate: 0.8, expMult: 0.7 },
+        ABYSS: { name: 'นรก', mult: 3, color: '#ff0088', spawnRate: 0.6, expMult: 0.6 },
+        HELL: { name: 'อเวจี', mult: 5, color: '#ff0000', spawnRate: 0.4, expMult: 0.5 },
+        IMPOSSIBLE: { name: 'เป็นไปไม่ได้', mult: 10, color: '#aa00ff', spawnRate: 0.3, expMult: 0.4 },
+        GOD: { name: 'ท้าทายเทพ', mult: 100, color: '#ffff00', spawnRate: 0.2, expMult: 0.3 },
+        RULER: { name: 'ท้าทายผู้คุมกฏ', mult: 1000, color: '#ff00ff', spawnRate: 0.1, expMult: 0.2 }
     } as Record<string, Difficulty>,
     PLAYER: {
         BASE_SPEED: 400,
@@ -93,7 +141,7 @@ export const CONFIG = {
         BASE_HP: 100,
         DASH_SPEED: 1000,
         DASH_DURATION: 0.2,
-        DASH_COOLDOWN: 3.0,
+        DASH_COOLDOWN: 3,
         DASH_COUNT: 1
     },
     ENEMY: {
@@ -128,7 +176,7 @@ export const CONFIG = {
             VALUE: 2000,
             COLOR: '#ff0000',
             RADIUS: 120,
-            SPAWN_TIME_PCT: 1.0,
+            SPAWN_TIME_PCT: 1,
             DAMAGE: 40
         },
         SECRET: {
@@ -162,16 +210,5 @@ export const CONFIG = {
         ORBITAL_SPEED: 2,
         TURRET_RANGE: 300
     },
-    SKILLS: {
-        BLACK_HOLE: { name: 'Black Hole', cooldown: 30, damage: 50, duration: 3, color: '#bf00ff', rarity: 'LEGENDARY' },
-        DOOM: { name: 'Doom', cooldown: 20, damage: 200, delay: 3, color: '#660000', rarity: 'EPIC' },
-        FIREBALL: { name: 'FireBall', cooldown: 8, damage: 40, radius: 100, color: '#ff4400', rarity: 'RARE' },
-        ICEBALL: { name: 'Ice Ball', cooldown: 12, damage: 30, freezeDuration: 3, color: '#00ccff', rarity: 'RARE' },
-        POISON_CLOUD: { name: 'Poison Cloud', cooldown: 10, damagePerSec: 15, duration: 5, color: '#00ff00', rarity: 'UNCOMMON' },
-        LIGHTNING_STORM: { name: 'Lightning Storm', cooldown: 15, damage: 25, strikes: 8, color: '#ffff00', rarity: 'EPIC' },
-        METEOR_SHOWER: { name: 'Meteor Shower', cooldown: 25, damage: 60, count: 5, color: '#ff8800', rarity: 'LEGENDARY' },
-        TIME_STOP: { name: 'Time Stop', cooldown: 45, duration: 2, color: '#ffffff', rarity: 'LEGENDARY' },
-        DIVINE_SHIELD: { name: 'Divine Shield', cooldown: 60, duration: 3, color: '#ffff88', rarity: 'EPIC' },
-        SOUL_HARVEST: { name: 'Soul Harvest', cooldown: 20, threshold: 0.15, radius: 200, color: '#aa00ff', rarity: 'EPIC' }
-    } as Record<string, SkillDef>
+
 };

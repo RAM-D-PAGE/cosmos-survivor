@@ -152,6 +152,12 @@ export const CARD_LOCALE = {
         description: 'Unlock additional weapon slot',
         descriptionTH: 'ปลดล็อกช่องอาวุธเพิ่มเติม'
     },
+    SKILL_SLOT: {
+        name: 'Skill Module',
+        nameTH: 'ช่องสกิล',
+        description: 'Unlock additional active skill slot',
+        descriptionTH: 'ปลดล็อกช่องสกิลเพิ่มเติม'
+    },
     AUTO_SHOOT: {
         name: 'A.I. Gunner',
         nameTH: 'AI พลปืน',

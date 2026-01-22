@@ -14,14 +14,37 @@ export class WeaponSystem {
     public activeWeapons: any[]; // AutoWeapon[]
     public maxWeapons: number;
 
-    // Procedural Definitions
-    private types = ['ORBITAL', 'TURRET', 'HEALER', 'DECOY'];
+    // Procedural Definitions - Expanded Weapon Types
+    private types = [
+        'ORBITAL',      // Orbiting drone
+        'TURRET',       // Stationary turret
+        'HEALER',       // Healing bot
+        'DECOY',        // Decoy spawner
+        'SEEKER',       // Homing missiles
+        'BEAM',         // Continuous beam
+        'SHOTGUN',      // Spread shot
+        'SNIPER',       // High damage, slow fire
+        'MINIGUN',      // Very fast, low damage
+        'EXPLOSIVE',    // Explosive rounds
+        'FREEZE',       // Freezing shots
+        'POISON',       // Poison DoT
+        'LASER',        // Piercing laser
+        'ORBIT_BLADE',  // Spinning blade orbit
+        'MISSILE',      // Slow but powerful
+    ];
     private elements = [
         { name: 'Plasma', color: '#00f0ff' },
         { name: 'Laser', color: '#ff0055' },
         { name: 'Void', color: '#aa00ff' },
-        { name: 'Nano', color: '#00ff88' }, // For Healer
-        { name: 'Holo', color: '#88aaff' }   // For Decoy
+        { name: 'Nano', color: '#00ff88' },
+        { name: 'Holo', color: '#88aaff' },
+        { name: 'Fire', color: '#ff4400' },
+        { name: 'Ice', color: '#00ccff' },
+        { name: 'Poison', color: '#00ff00' },
+        { name: 'Lightning', color: '#ffff00' },
+        { name: 'Dark', color: '#4400aa' },
+        { name: 'Crystal', color: '#ff00ff' },
+        { name: 'Quantum', color: '#00ffff' },
     ];
 
     constructor(game: any) {
@@ -64,6 +87,11 @@ export class WeaponSystem {
                     name: name,
                     color: element.color
                 });
+                
+                // Check for synergies
+                if (game.synergySystem) {
+                    game.synergySystem.checkSynergies();
+                }
             }
         };
     }
@@ -74,6 +102,17 @@ export class WeaponSystem {
             case 'TURRET': return 'Turret';
             case 'HEALER': return 'Bot';
             case 'DECOY': return 'Holo';
+            case 'SEEKER': return 'Seeker';
+            case 'BEAM': return 'Beam';
+            case 'SHOTGUN': return 'Shotgun';
+            case 'SNIPER': return 'Sniper';
+            case 'MINIGUN': return 'Minigun';
+            case 'EXPLOSIVE': return 'Launcher';
+            case 'FREEZE': return 'Freezer';
+            case 'POISON': return 'Toxin';
+            case 'LASER': return 'Laser';
+            case 'ORBIT_BLADE': return 'Blade';
+            case 'MISSILE': return 'Missile';
             default: return 'Unit';
         }
     }

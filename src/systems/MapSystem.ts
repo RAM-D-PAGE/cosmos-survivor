@@ -1,4 +1,5 @@
 import { Boss } from '../entities/Boss.js'; // Will need migration
+import { CONFIG } from '../core/Config';
 
 export class MapSystem {
     private game: any;
@@ -118,7 +119,7 @@ export class MapSystem {
 
         return {
             name: name,
-            duration: 60,
+            duration: CONFIG.MAP.ZONE_DURATION, // Enforce 60s from Config
             bgColor: prefix.color,
             starColor: prefix.stars,
             nebulaColors: (prefix as any).nebula,
@@ -136,7 +137,6 @@ export class MapSystem {
         this.waveExpMultiplier = 1 + (this.zoneCount * 0.15);
         this.waveDamageMultiplier = 1 + (this.zoneCount * 0.1);
 
-        const baseSpeed = this.game.player.baseStats?.maxSpeed || 400;
         if (this.currentZone.debuff === 'SLOW') {
             this.game.player.maxSpeed = Math.max(150, this.game.player.maxSpeed * 0.5);
         }
@@ -156,7 +156,7 @@ export class MapSystem {
             this.secretBossCheckTimer = (this.secretBossCheckTimer || 0) + dt;
             if (this.secretBossCheckTimer >= 10) { // Every 10 seconds
                 this.secretBossCheckTimer = 0;
-                if (Math.random() < 0.005) { // 0.5% chance
+                if (Math.random() < 0.05) { // 5% chance (Increased from 0.5%)
                     this.spawnSecretBoss();
                 }
             }
@@ -218,8 +218,14 @@ export class MapSystem {
                     this.currentZone.nebulaColors
                 );
             }
+
+            // Trigger Boss Reward
+            if (this.game.triggerBossReward) {
+                this.game.triggerBossReward();
+            }
         }
     }
+
 
     getCurrentZone(): any {
         return this.currentZone;
@@ -255,4 +261,10 @@ export class MapSystem {
             );
         }
     }
+
+    // Getters for UI
+    public get timerValue(): number { return this.timer; }
+    public get currentZoneData(): any { return this.currentZone; }
+    public get isWaitingForKill(): boolean { return this.waitingForKill; }
+    public get isMiniBossSpawned(): boolean { return this.miniBossSpawned; }
 }

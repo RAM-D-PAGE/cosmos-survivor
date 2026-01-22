@@ -13,13 +13,31 @@ import { WeaponSystem } from '../systems/WeaponSystem';
 import { SkillSystem } from '../systems/SkillSystem';
 import { LeaderboardSystem } from '../systems/LeaderboardSystem';
 import { LoginSystem } from '../systems/LoginSystem';
-import { CardSystem } from '../systems/CardSystem'; // Ensure this is here
+import { CardSystem } from '../systems/CardSystem';
 import { CONFIG } from './Config';
 import { EventManager } from './EventManager';
 import { RenderSystem } from '../systems/RenderSystem';
 import { UIManager } from '../ui/UIManager';
 import { ObjectPool } from './ObjectPool';
-import { AutoWeapon } from '../entities/AutoWeapon';
+import { SpatialGrid } from './SpatialGrid';
+import { GameState, CameraMode, ICollidable } from './Types';
+import { GameStateManager } from './GameState';
+import { GameManager } from './GameManager';
+import { GameEventType } from './Events';
+import { PerformanceMonitor } from './PerformanceMonitor';
+import { ErrorHandler } from './ErrorHandler';
+import { isValidNumber } from './Utils';
+import { DebugPanel } from './DebugPanel';
+import { PrestigeSystem } from '../systems/PrestigeSystem';
+import { WeaponFusionSystem } from '../systems/WeaponFusionSystem';
+import { SkillMasterySystem } from '../systems/SkillMasterySystem';
+import { CosmeticShopSystem } from '../systems/CosmeticShopSystem';
+import { StatPresetSystem } from '../systems/StatPresetSystem';
+import { GameplayEnhancer } from '../systems/GameplayEnhancer';
+import { SynergySystem } from '../systems/SynergySystem';
+import { ShopSystem } from '../systems/ShopSystem';
+import { MultiPlayerSystem } from '../systems/MultiPlayerSystem';
+import { ComboManager } from '../systems/SkillComboSystem';
 
 export class Game {
     public canvas: HTMLCanvasElement;
@@ -36,6 +54,16 @@ export class Game {
     public leaderboardSystem: LeaderboardSystem;
     public loginSystem: LoginSystem;
     public cardSystem: CardSystem;
+    public gameplayEnhancer: GameplayEnhancer;
+    public synergySystem: SynergySystem;
+    public shopSystem: ShopSystem;
+    public multiPlayerSystem: MultiPlayerSystem;
+    public prestigeSystem: PrestigeSystem;
+    public weaponFusionSystem: WeaponFusionSystem;
+    public skillMasterySystem: SkillMasterySystem;
+    public cosmeticShopSystem: CosmeticShopSystem;
+    public statPresetSystem: StatPresetSystem;
+    public comboManager: ComboManager;
 
     public difficulty: string = 'NORMAL';
     public difficultyMult: number = 1.5;
@@ -60,31 +88,59 @@ export class Game {
     public coins: number = 0;
     public level: number = 1;
     public expToNextLevel: number = 100;
-    public isPaused: boolean = true;
     public difficultyMultiplier: number = 0;
 
     public lastTime: number = 0;
     public accumulator: number = 0;
     public step: number = 1 / 60;
 
-    public gameState: string = 'MENU';
+    // State properties delegated to StateManager
+    public get gameState(): GameState {
+        return this.stateManager ? this.stateManager.currentState : 'MENU';
+    }
+    public set gameState(v: GameState) {
+        if (this.stateManager) this.stateManager.setState(v);
+    }
+
+    public get isPaused(): boolean {
+        return this.stateManager ? this.stateManager.isPaused() : true;
+    }
+    public set isPaused(v: boolean) {
+        if (!this.stateManager) return;
+        if (v) this.stateManager.setState('PAUSED');
+        else if (this.stateManager.currentState === 'PAUSED') this.stateManager.setState('PLAYING');
+    }
     public camera: { x: number, y: number } = { x: 0, y: 0 };
     public acquiredUpgrades: any[] = [];
     public finalScore: number = 0;
     public enemiesKilled: number = 0;
 
+    // Spatial Partitioning System
+    private readonly spatialGrid: SpatialGrid;
+
+    // Performance & Error Handling
+    public performanceMonitor: PerformanceMonitor;
+    public errorHandler: ErrorHandler;
+    public debugPanel: DebugPanel;
+
+    // State Management
+    public stateManager: any;
+    public gameManager: any;
+
     // Settings flags
     public screenShakeEnabled: boolean = true;
     public damageNumbersEnabled: boolean = true;
     public showFps: boolean = false;
+    public fpsMode: 'BASIC' | 'ADVANCED' = 'BASIC';
     public resumeCountdownEnabled: boolean = true;
 
     // FPS Tracking
-    private fpsLastTime: number = 0;
-    private fpsFrameCount: number = 0;
     public currentFps: number = 0;
 
     private secretRewardPicks: number = 0;
+    public bossPicksRemaining: number = 0;
+    public levelUpPicks: number = 0;
+    public tempChoices: any[] = []; // Store current choices for verification if needed
 
     // Helper getters for old code compatibility
     get projectiles() { return this.projectilePool.active; }
@@ -127,16 +183,59 @@ export class Game {
 
         this.enemySpawnInterval = CONFIG.GAME.ENEMY_SPAWN_INTERVAL;
 
+        // Initialize Spatial Grid (cell size: 200px - optimal for most entity sizes)
+        this.spatialGrid = new SpatialGrid(200);
+
+        // Initialize Game State and Manager
+        this.stateManager = new GameStateManager();
+        this.gameManager = new GameManager();
+
+        // Initialize Performance Monitor and Error Handler
+        this.performanceMonitor = new PerformanceMonitor();
+        this.errorHandler = new ErrorHandler();
+
+        // Initialize Debug Panel (will be created when needed)
+        this.debugPanel = new DebugPanel(
+            this.performanceMonitor,
+            this.errorHandler,
+            this.spatialGrid
+        );
+        this.debugPanel.initKeyboardShortcut(this);
+
+        // Initialize Gameplay Enhancers
+        this.gameplayEnhancer = new GameplayEnhancer(this);
+        this.synergySystem = new SynergySystem(this);
+        this.shopSystem = new ShopSystem(this);
+        this.multiPlayerSystem = new MultiPlayerSystem(this);
+        this.prestigeSystem = new PrestigeSystem(this);
+        this.weaponFusionSystem = new WeaponFusionSystem(this);
+        this.skillMasterySystem = new SkillMasterySystem(this);
+        this.cosmeticShopSystem = new CosmeticShopSystem(this);
+        this.statPresetSystem = new StatPresetSystem(this);
+        this.comboManager = new ComboManager(this);
+
+        console.log("[GAME] All systems loaded");
+
+        // Register systems with game manager
+        this.gameManager.registerSystem(this.mapSystem);
+        this.gameManager.registerSystem(this.weaponSystem);
+        this.gameManager.registerSystem(this.skillSystem);
+
         document.addEventListener('click', () => {
             if (this.audio.ctx.state === 'suspended') {
                 this.audio.ctx.resume();
             }
         }, { once: true });
 
-        window.addEventListener('keydown', (e) => {
+        globalThis.addEventListener('keydown', (e) => {
             if (e.code === 'Tab') {
                 e.preventDefault();
-                this.togglePause();
+                // Delegate to UI to handle overlays and toggling properly
+                if (this.ui && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED')) {
+                    (this.ui as any).handleGlobalTabToggle?.();
+                } else {
+                    this.togglePause();
+                }
             }
         });
     }
@@ -148,8 +247,9 @@ export class Game {
     }
 
     togglePause(): void {
-        if (this.gameState !== 'PLAYING') return;
-        this.isPaused = !this.isPaused;
+        if (this.gameState !== 'PLAYING' && this.gameState !== 'PAUSED') return;
+        const newState = this.isPaused ? 'PLAYING' : 'PAUSED';
+        this.stateManager.setState(newState);
         this.ui.togglePauseMenu(this.isPaused);
     }
 
@@ -182,10 +282,8 @@ export class Game {
     }
 
     restart(): void {
-        this.exp = 0;
-        this.level = 1;
-        this.expToNextLevel = 100;
-        this.isPaused = false;
+        // Reset state manager
+        this.stateManager.reset();
 
         if (!this.difficulty) this.difficulty = 'NORMAL';
         const cfg = CONFIG.DIFFICULTY[this.difficulty as keyof typeof CONFIG.DIFFICULTY];
@@ -201,7 +299,6 @@ export class Game {
 
         this.mapSystem.reset();
         this.weaponSystem.reset();
-        // this.starfield.speedMultiplier = 1; // Does not exist on starfield TS yet, ignore or add?
         this.enemies = [];
         this.projectilePool.releaseAll();
         this.particlePool.releaseAll();
@@ -209,26 +306,46 @@ export class Game {
         this.floatingTexts = [];
         this.upgradeSystem.reset();
         this.skillSystem.reset();
-        this.difficultyMultiplier = 0; // Reset enemy scaling
-
-        this.coins = 0; // Reset Economy
+        if (this.gameplayEnhancer) this.gameplayEnhancer.reset();
+        if (this.synergySystem) this.synergySystem.reset();
+        if (this.shopSystem) this.shopSystem.reset();
+        if (this.multiPlayerSystem) this.multiPlayerSystem.reset();
 
         // Center camera on player
         this.camera.x = this.player.x - this.canvas.width / 2;
         this.camera.y = this.player.y - this.canvas.height / 2;
 
-        this.acquiredUpgrades = [];
         const container = document.getElementById('card-container');
         if (container) container.innerHTML = '';
         document.getElementById('upgrade-menu')?.classList.add('hidden');
         document.getElementById('leaderboard')?.classList.add('hidden');
 
+        this.acquiredUpgrades = [];
+        this.enemiesKilled = 0;
+        this.finalScore = 0;
+        this.accumulator = 0;
+        this.stateManager.exp = 0;
+        this.stateManager.level = 1;
+        this.stateManager.coins = 0;
+        this.stateManager.enemiesKilled = 0;
+
+        // Ensure UI updates to reflect reset
+        if (this.ui) {
+            this.ui.updateCoins(0);
+        }
+
         this.startGame();
     }
 
     startGame(): void {
-        this.gameState = 'PLAYING';
+        // Ensure map/timers reset when starting a fresh session (avoid stale 6:00+ timers)
+        if (this.mapSystem && (this.mapSystem.totalTime > 0 || this.stateManager.currentState !== 'PLAYING')) {
+            this.mapSystem.reset();
+        }
+
         this.isPaused = false;
+        this.gameState = 'PLAYING';
+        this.stateManager.setState('PLAYING');
         this.ui.showGameHUD();
 
         // Center camera on player
@@ -237,8 +354,23 @@ export class Game {
 
         if (this.audio.ctx.state === 'suspended') this.audio.ctx.resume();
 
+        // Apply prestige bonuses
+        if (this.prestigeSystem) {
+            this.prestigeSystem.applyPrestigeBonuses();
+            const startingBonuses = this.prestigeSystem.getStartingBonuses();
+            if (startingBonuses.level > 0) {
+                for (let i = 0; i < startingBonuses.level; i++) {
+                    this.stateManager.levelUp();
+                }
+            }
+            if (startingBonuses.coins > 0) {
+                this.stateManager.coins += startingBonuses.coins;
+                this.spawnCoin(this.player.x, this.player.y, startingBonuses.coins);
+            }
+        }
+
         if (this.weaponSystem.activeWeapons.length === 0) {
-            const startingWep = this.weaponSystem.createConfig('ORBITAL', 5, 1.0, 300, '#00f0ff', 'Plasma Drone');
+            const startingWep = this.weaponSystem.createConfig('ORBITAL', 5, 1, 300, '#00f0ff', 'Plasma Drone');
             this.weaponSystem.installWeapon(startingWep);
         }
 
@@ -257,68 +389,117 @@ export class Game {
 
     public start(): void {
         this.lastTime = performance.now();
-        this.fpsLastTime = performance.now();
-        this.fpsFrameCount = 0;
+        this.gameManager.reset();
         requestAnimationFrame(this.loop);
     }
 
     public loop = (currentTime: number): void => {
-        const deltaTime = (currentTime - this.lastTime) / 1000;
-        this.lastTime = currentTime;
+        try {
+            this.performanceMonitor.startFrame();
+            const deltaTime = (currentTime - this.lastTime) / 1000;
+            this.lastTime = currentTime;
 
-        // FPS Calculation
-        this.fpsFrameCount++;
-        if (currentTime - this.fpsLastTime >= 1000) {
-            this.currentFps = this.fpsFrameCount;
-            this.fpsFrameCount = 0;
-            this.fpsLastTime = currentTime;
-            this.updateFpsCounter();
+            if (!this.isPaused && this.gameState !== 'GAME_OVER') {
+                this.performanceMonitor.startUpdate();
+                // Use GameManager for system updates
+                this.gameManager.update(deltaTime);
+                // Update entities directly (not through GameManager for now)
+                this.update(deltaTime);
+                this.performanceMonitor.endUpdate();
+            }
+
+            this.performanceMonitor.startRender();
+            this.draw();
+            this.performanceMonitor.endRender();
+
+            if (this.gameState === 'PLAYING' || this.gameState === 'GAME_OVER') {
+                this.ui.update(deltaTime);
+            }
+
+            // Update performance metrics
+            const gridStats = this.spatialGrid.getStats();
+            this.performanceMonitor.updateCounts(
+                this.enemies.length + this.gems.length + 1, // +1 for player
+                this.projectilePool.active.length,
+                this.particlePool.active.length,
+                gridStats.cellCount
+            );
+
+            this.performanceMonitor.endFrame();
+
+            // Update FPS counter display
+            if (this.showFps) {
+                this.updateFpsCounter();
+            }
+
+            // Update debug panel
+            if (this.debugPanel) {
+                this.debugPanel.update();
+            }
+
+            // Input update at end of frame
+            this.input.update();
+        } catch (error) {
+            this.errorHandler.handleError(error as Error, { context: 'game loop' });
         }
 
-        if (!this.isPaused) {
-            this.update(deltaTime);
-        }
-        this.draw();
-
-        if (this.gameState === 'PLAYING' || this.gameState === 'GAME_OVER') {
-            this.ui.update(deltaTime);
-        }
-
-        // Input update at end of frame
-        this.input.update();
         requestAnimationFrame(this.loop);
     }
 
-    public cameraMode: 'LOCKED' | 'DYNAMIC' = 'DYNAMIC';
+    public cameraMode: CameraMode = 'DYNAMIC';
 
     update(dt: number): void {
         const input = this.input;
 
-        // Toggle Camera Mode (Left Shift)
+        this.updateCamera(input);
+        this.updateShake(dt);
+
+        // Logic Updates - ONLY when PLAYING
+        if (this.stateManager.isPlaying()) {
+            this.updateEntities(dt);
+        }
+
+        // Always update background for visual flair
+        this.backgroundSystem.update(dt);
+        this.updateParticlesAndText(dt);
+        this.updateSpawnLogic(dt);
+
+        // Rebuild spatial grid each frame for accurate collision detection
+        this.rebuildSpatialGrid();
+
+        this.checkCollisions();
+    }
+
+    private updateCamera(input: Input): void {
+        // Toggle Camera Mode (Left Shift) - Debug only or In-Game
         if (input.isKeyJustPressed('ShiftLeft')) {
             this.cameraMode = this.cameraMode === 'LOCKED' ? 'DYNAMIC' : 'LOCKED';
             this.spawnFloatingText(this.player.x, this.player.y, `CAMERA: ${this.cameraMode}`, '#ffffff');
         }
 
         // Camera Logic
-        if (this.cameraMode === 'LOCKED') {
-            this.camera.x = this.player.x - this.canvas.width / 2;
-            this.camera.y = this.player.y - this.canvas.height / 2;
-        } else {
-            // Dynamic (Existing Logic)
-            const marginX = this.canvas.width * 0.25;
-            const marginY = this.canvas.height * 0.25;
+        if (this.stateManager.isPlaying()) {
+            if (this.cameraMode === 'LOCKED') {
+                this.camera.x = this.player.x - this.canvas.width / 2;
+                this.camera.y = this.player.y - this.canvas.height / 2;
+            } else {
+                // Dynamic (Existing Logic)
+                const marginX = this.canvas.width * 0.25;
+                const marginY = this.canvas.height * 0.25;
 
-            const screenX = this.player.x - this.camera.x;
-            const screenY = this.player.y - this.camera.y;
+                const screenX = this.player.x - this.camera.x;
+                const screenY = this.player.y - this.camera.y;
 
-            if (screenX < marginX) this.camera.x = this.player.x - marginX;
-            else if (screenX > this.canvas.width - marginX) this.camera.x = this.player.x - (this.canvas.width - marginX);
+                if (screenX < marginX) this.camera.x = this.player.x - marginX;
+                else if (screenX > this.canvas.width - marginX) this.camera.x = this.player.x - (this.canvas.width - marginX);
 
-            if (screenY < marginY) this.camera.y = this.player.y - marginY;
-            else if (screenY > this.canvas.height - marginY) this.camera.y = this.player.y - (this.canvas.height - marginY);
+                if (screenY < marginY) this.camera.y = this.player.y - marginY;
+                else if (screenY > this.canvas.height - marginY) this.camera.y = this.player.y - (this.canvas.height - marginY);
+            }
         }
+    }
 
+    private updateShake(dt: number): void {
         if (this.shakeTimer > 0) {
             this.shakeTimer -= dt;
             const magnitude = this.shakeIntensity || 5;
@@ -328,15 +509,16 @@ export class Game {
             this.shakeX = 0;
             this.shakeY = 0;
         }
+    }
 
+    private updateEntities(dt: number): void {
         this.mapSystem.update(dt);
         this.player.update(dt);
         if (this.weaponSystem) this.weaponSystem.update(dt);
         if (this.skillSystem) this.skillSystem.update(dt);
+        if (this.gameplayEnhancer) this.gameplayEnhancer.update(dt);
 
         this.difficultyMultiplier += (dt / 60) * 0.5;
-
-        this.backgroundSystem.update(dt);
 
         this.projectilePool.forEachActive((p) => {
             p.update(dt);
@@ -350,7 +532,9 @@ export class Game {
 
         this.gems.forEach(g => g.update(dt));
         this.gems = this.gems.filter(g => !g.markedForDeletion);
+    }
 
+    private updateParticlesAndText(dt: number): void {
         this.particlePool.forEachActive((p) => {
             p.update(dt);
             if (p.markedForDeletion) {
@@ -360,116 +544,295 @@ export class Game {
 
         this.floatingTexts.forEach(t => t.update(dt));
         this.floatingTexts = this.floatingTexts.filter(t => !t.markedForDeletion);
+    }
 
+    private updateSpawnLogic(dt: number): void {
         this.enemySpawnTimer += dt;
         if (this.enemySpawnTimer > this.enemySpawnInterval) {
             this.spawnEnemy();
             this.enemySpawnTimer = 0;
         }
-
-        this.checkCollisions();
     }
 
 
+    /**
+     * Rebuild spatial grid with current entities and projectiles
+     */
+    private rebuildSpatialGrid(): void {
+        const entities: ICollidable[] = [
+            this.player as unknown as ICollidable,
+            ...this.enemies as ICollidable[],
+            ...this.gems as ICollidable[]
+        ];
+
+        const projectiles: any[] = this.projectilePool.active.map(p => ({
+            x: p.x,
+            y: p.y,
+            radius: p.radius,
+            angle: p.angle,
+            speed: p.speed,
+            damage: p.damage,
+            isEnemy: p.isEnemy
+        }));
+
+        this.spatialGrid.rebuild(entities, projectiles);
+    }
+
     checkCollisions(): void {
-        this.projectilePool.forEachActive(p => {
-            if (p.markedForDeletion) return;
+        try {
+            this.performanceMonitor.startCollision();
 
-            if (p.isEnemy) {
-                const dx = p.x - this.player.x;
-                const dy = p.y - this.player.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < p.radius + this.player.radius) {
-                    if (!this.player.isInvulnerable) {
-                        this.player.hp -= p.damage;
-                        this.ui.update(0);
-                        this.spawnFloatingText(this.player.x, this.player.y, `-${p.damage}`, '#ff0000');
-
-                        if (this.player.hp <= 0) {
-                            this.gameOver();
-                        }
-                    }
-                    p.markedForDeletion = true;
-                }
-            } else {
-                this.enemies.forEach(e => {
-                    if (e.markedForDeletion) return;
-
-                    const dx = p.x - e.x;
-                    const dy = p.y - e.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    if (distance < p.radius + e.radius) {
-                        e.takeDamage(p.damage);
-                        p.markedForDeletion = true;
-                        this.spawnParticles(p.x, p.y, 3, '#ffaa00');
-
-                        // EXP on Hit
-                        const expGain = Math.max(1, Math.floor(p.damage * 0.1));
-                        this.addExp(expGain);
-
-                        if (e.markedForDeletion) {
-                            this.enemiesKilled++;
-                            this.spawnParticles(e.x, e.y, 10, '#ff0055');
-                        }
-                    }
-                });
+            // Validate player
+            if (!this.errorHandler.validateEntity(this.player, 'player')) {
+                return;
             }
-        });
 
-        this.enemies.forEach(e => {
-            const dx = e.x - this.player.x;
-            const dy = e.y - this.player.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            // Use spatial grid for efficient collision detection
+            this.projectilePool.forEachActive(p => {
+                if (p.markedForDeletion) return;
+                if (p.isEnemy) this.handleEnemyProjectile(p);
+                else this.handlePlayerProjectile(p);
+            });
 
-            if (distance < e.radius + this.player.radius) {
+            this.checkEnemyCollisions();
+            this.checkGemCollisions();
+            this.checkDashCollisions();
+
+            this.performanceMonitor.endCollision();
+        } catch (error) {
+            this.errorHandler.handleError(error as Error, { context: 'collision detection' });
+        }
+    }
+
+    private handleEnemyProjectile(p: any): void {
+        const playerX = this.player.x;
+        const playerY = this.player.y;
+        const playerRadius = this.player.radius;
+
+        // Player vs Enemy Projectile
+        const dx = p.x - playerX;
+        const dy = p.y - playerY;
+        const distSq = dx * dx + dy * dy;
+        const minDistSq = (p.radius + playerRadius) * (p.radius + playerRadius);
+
+        if (distSq < minDistSq) {
+            if (!this.player.isInvulnerable) {
+                // Apply damage reduction with numeric guards
+                let finalDamage = Number(p.damage) || 0;
+                const dr = Math.max(0, Math.min(1, Number(this.player.damageReduction) || 0));
+                const armor = Math.max(0, Math.min(1, Number(this.player.armor) || 0));
+                finalDamage *= (1 - dr);
+                finalDamage *= (1 - armor);
+                finalDamage = Math.max(0, Math.min(1e6, finalDamage));
+
+                const newHp = (Number(this.player.hp) || 0) - finalDamage;
+                this.player.hp = Math.max(0, Math.min(Number(this.player.maxHp) || 0, newHp));
+                this.ui.update(0);
+                this.spawnFloatingText(playerX, playerY, `-${Math.round(finalDamage)}`, '#ff0000');
+
+                // Invulnerability frames
+                if (this.player.invulnFrameDuration > 0) {
+                    this.player.isInvulnerable = true;
+                    setTimeout(() => {
+                        this.player.isInvulnerable = false;
+                    }, this.player.invulnFrameDuration * 1000);
+                }
+
+                // Reflect damage
+                if (this.player.reflectDamage > 0 && p.isEnemy) {
+                    // Find enemy that shot this
+                    const threshSq = 50 * 50;
+                    this.enemies.forEach((e: any) => {
+                        if (e.markedForDeletion) return;
+                        const dx = e.x - p.x;
+                        const dy = e.y - p.y;
+                        if ((dx * dx + dy * dy) < threshSq) {
+                            e.takeDamage(finalDamage * this.player.reflectDamage, 'reflected');
+                        }
+                    });
+                }
+
+                if (this.player.hp <= 0) {
+                    this.gameOver();
+                }
+            }
+            p.markedForDeletion = true;
+        }
+    }
+
+    private handlePlayerProjectile(p: any): void {
+        const pRadius = p.radius;
+        const pX = p.x;
+        const pY = p.y;
+        const nearbyEnemies = this.spatialGrid.getNearbyEntities(pX, pY, pRadius * 2);
+
+        for (const entity of nearbyEnemies) {
+            const e = entity as Enemy;
+            if (e.markedForDeletion || !this.enemies.includes(e)) continue;
+
+            const dx = pX - e.x;
+            const dy = pY - e.y;
+            const distSq = dx * dx + dy * dy;
+            const minDistSq = (pRadius + e.radius) * (pRadius + e.radius);
+
+            if (distSq < minDistSq) {
+                e.takeDamage(p.damage);
+                p.markedForDeletion = true;
+                this.spawnParticles(pX, pY, 3, '#ffaa00');
+                const expGain = Math.max(1, Math.floor(p.damage * 0.1));
+                this.addExp(expGain);
+
+                if (e.markedForDeletion) {
+                    this.stateManager.enemiesKilled++;
+                    this.spawnParticles(e.x, e.y, 10, '#ff0055');
+                    if (this.gameplayEnhancer) {
+                        this.gameplayEnhancer.addCombo();
+                        this.gameplayEnhancer.addKillStreak();
+                        this.gameplayEnhancer.checkAchievements();
+                    }
+                    if (this.player.healthOnKill) {
+                        this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.healthOnKill);
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    private checkEnemyCollisions(): void {
+        const playerX = this.player.x;
+        const playerY = this.player.y;
+        const playerRadius = this.player.radius;
+        const nearbyEnemiesForPlayer = this.spatialGrid.getNearbyEntities(playerX, playerY, playerRadius * 2);
+
+        for (const entity of nearbyEnemiesForPlayer) {
+            const e = entity as Enemy;
+            if (e.markedForDeletion || !this.enemies.includes(e)) continue;
+
+            const dx = e.x - playerX;
+            const dy = e.y - playerY;
+            const distSq = dx * dx + dy * dy;
+            const minDistSq = (e.radius + playerRadius) * (e.radius + playerRadius);
+
+            if (distSq < minDistSq) {
                 if (!this.player.isInvulnerable) {
                     const collisionDmg = 10;
-                    this.player.hp -= collisionDmg;
+                    this.player.hp = Math.max(0, this.player.hp - collisionDmg);
                     this.ui.update(0);
-                    this.spawnFloatingText(this.player.x, this.player.y, `-${collisionDmg}`, '#ff0000');
+                    this.spawnFloatingText(playerX, playerY, `-${collisionDmg}`, '#ff0000');
                     this.addScreenShake(0.3, 5);
-
-                    const angle = Math.atan2(this.player.y - e.y, this.player.x - e.x);
-                    this.player.velocity.x += Math.cos(angle) * 500;
-                    this.player.velocity.y += Math.sin(angle) * 500;
 
                     if (this.player.hp <= 0) {
                         this.gameOver();
                     }
+
+                    const angle = Math.atan2(playerY - e.y, playerX - e.x);
+                    this.player.velocity.x += Math.cos(angle) * 500;
+                    this.player.velocity.y += Math.sin(angle) * 500;
                 }
             }
-        });
+        }
+    }
 
-        this.gems.forEach(g => {
-            const dx = g.x - this.player.x;
-            const dy = g.y - this.player.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+    private checkGemCollisions(): void {
+        const playerX = this.player.x;
+        const playerY = this.player.y;
+        const playerRadius = this.player.radius;
+        const nearbyGems = this.spatialGrid.getNearbyEntities(playerX, playerY, playerRadius * 2);
 
-            if (distance < g.radius + this.player.radius) {
+        for (const entity of nearbyGems) {
+            const g = entity as Gem;
+            if (g.markedForDeletion || !this.gems.includes(g)) continue;
+
+            const dx = g.x - playerX;
+            const dy = g.y - playerY;
+            const distSq = dx * dx + dy * dy;
+            const minDistSq = (g.radius + playerRadius) * (g.radius + playerRadius);
+
+            if (distSq < minDistSq) {
                 this.addExp(g.value);
                 g.markedForDeletion = true;
             }
-        });
+        }
+    }
+
+    private checkDashCollisions(): void {
+        if (this.player.isDashing && this.player.dashDamage > 0) {
+            const nearby = this.spatialGrid.getNearbyEntities(this.player.x, this.player.y, this.player.radius * 2);
+            for (const e of nearby) {
+                const enemy = e as Enemy;
+                if (!enemy.markedForDeletion && this.enemies.includes(enemy)) {
+                    const dx = this.player.x - enemy.x;
+                    const dy = this.player.y - enemy.y;
+                    const distSq = dx * dx + dy * dy;
+                    const range = this.player.radius + enemy.radius;
+
+                    if (distSq < range * range) {
+                        enemy.takeDamage(this.player.dashDamage, 'dash');
+                        this.spawnParticles(enemy.x, enemy.y, 5, '#00f0ff');
+                    }
+                }
+            }
+        }
     }
 
     addExp(amount: number): void {
-        this.exp += amount;
+        if (!isValidNumber(amount) || amount <= 0) {
+            this.errorHandler.handleError(
+                new Error(`Invalid exp amount: ${amount}`),
+                { context: 'addExp' }
+            );
+            return;
+        }
+
+        // Apply gem multiplier
+        const finalAmount = Math.floor(amount * (this.player.gemMultiplier || 1));
+        this.stateManager.addExp(finalAmount);
         this.audio.playGem();
-        if (this.exp >= this.expToNextLevel) {
+
+        // Emit EXP gained event
+        this.events.emit(GameEventType.EXP_GAINED, {
+            amount: finalAmount,
+            newExp: this.stateManager.exp,
+            expToNextLevel: this.stateManager.expToNextLevel
+        });
+
+        if (this.stateManager.exp >= this.stateManager.expToNextLevel) {
             this.levelUp();
         }
     }
 
     levelUp(): void {
-        this.exp -= this.expToNextLevel;
-        this.level++;
-        this.expToNextLevel = Math.floor(this.expToNextLevel * 1.2);
+        this.stateManager.levelUp();
         this.ui.update(0);
 
+        // Emit level up event here
+        this.events.emit(GameEventType.PLAYER_LEVEL_UP, {
+            newLevel: this.stateManager.level,
+            exp: this.stateManager.exp,
+            expToNextLevel: this.stateManager.expToNextLevel
+        });
+
         this.audio.playLevelUp();
-        this.isPaused = true;
+        this.stateManager.setState('PAUSED');
+
+        // Double Pick Logic
+        this.levelUpPicks = 1 + (this.player.extraUpgradePicks || 0);
+
         this.showUpgradeMenu();
+    }
+
+    handleUpgradePicked(choice: any): void {
+        choice.apply(this);
+        this.acquiredUpgrades.push({ name: choice.name, color: choice.color });
+
+        this.levelUpPicks--;
+        if (this.levelUpPicks > 0) {
+            this.spawnFloatingText(this.player.x, this.player.y, `PICK ${this.levelUpPicks} MORE!`, "#00ff00");
+            this.rerollUpgrades(); // Refresh choices for next pick
+        } else {
+            this.closeUpgradeMenu();
+        }
     }
 
     showUpgradeMenu(choices?: any[]): void {
@@ -482,23 +845,30 @@ export class Game {
         this.ui.showUpgradeMenu(choices);
     }
 
+    triggerBossReward(): void {
+        const choices = this.upgradeSystem.getMysticalChoices(3);
+        this.stateManager.setState('PAUSED');
+        this.ui.showUpgradeMenu(choices);
+        this.audio.playLevelUp();
+        this.spawnFloatingText(this.player.x, this.player.y, "BOSS REWARD!", "#ff00ea");
+    }
+
     closeUpgradeMenu(): void {
         this.ui.closeUpgradeMenu();
 
         // Check for consecutive level up
-        if (this.exp >= this.expToNextLevel) {
+        if (this.stateManager.exp >= this.stateManager.expToNextLevel) {
             this.levelUp();
             return;
         }
 
         // Countdown Resume
         if (!this.resumeCountdownEnabled) {
-            this.gameState = 'PLAYING';
-            this.isPaused = false;
+            this.stateManager.setState('PLAYING');
             return;
         }
 
-        this.gameState = 'RESUMING';
+        this.stateManager.setState('RESUMING');
 
         let count = 3;
         const countdownEl = document.createElement('div');
@@ -522,13 +892,12 @@ export class Game {
             } else {
                 clearInterval(interval);
                 if (document.body.contains(countdownEl)) {
-                    document.body.removeChild(countdownEl);
+                    countdownEl.remove();
                 }
-                this.gameState = 'PLAYING';
-                this.isPaused = false;
+                this.stateManager.setState('PLAYING');
 
                 // Double check just in case (though we handled it above)
-                if (this.exp >= this.expToNextLevel) {
+                if (this.stateManager.exp >= this.stateManager.expToNextLevel) {
                     this.levelUp();
                 }
             }
@@ -536,10 +905,21 @@ export class Game {
     }
 
     gameOver(): void {
-        this.isPaused = true;
-        this.finalScore = Math.floor(this.exp + (this.mapSystem.totalTime * 10) + (this.enemiesKilled || 0) * 5);
-        this.gameState = 'GAME_OVER';
-        this.ui.showGameOver(this.finalScore);
+        this.stateManager.setState('GAME_OVER');
+        this.stateManager.finalScore = Math.floor(
+            this.stateManager.exp +
+            (this.mapSystem.totalTime * 10) +
+            (this.stateManager.enemiesKilled || 0) * 5
+        );
+
+        // Emit event
+        this.events.emit(GameEventType.GAME_OVER, {
+            score: this.stateManager.finalScore,
+            level: this.stateManager.level,
+            enemiesKilled: this.stateManager.enemiesKilled
+        });
+
+        this.ui.showGameOver(this.stateManager.finalScore);
     }
 
     submitScore(): void {
@@ -548,13 +928,15 @@ export class Game {
 
         this.leaderboardSystem.saveScore({
             name: name,
-            score: this.finalScore,
-            level: this.level,
+            score: this.stateManager.finalScore,
+            level: this.stateManager.level,
             difficulty: this.difficulty || 'NORMAL',
             date: new Date().toLocaleDateString()
         });
 
         this.ui.hideSubmitButton();
+        // ensure leaderboard UI methods exist before calling (defensive)
+        // (Keeping contracts consistent is preferred long-term.)
 
         // Hide game-over screen when showing leaderboard after score submit
         document.getElementById('game-over-screen')?.classList.add('hidden');
@@ -568,11 +950,10 @@ export class Game {
     }
 
     triggerSecretReward(): void {
-        this.isPaused = true;
+        this.stateManager.setState('PAUSED');
         let levelsToGain = 5;
         for (let i = 0; i < levelsToGain; i++) {
-            this.level++;
-            this.expToNextLevel = Math.floor(this.expToNextLevel * 1.2);
+            this.stateManager.levelUp();
         }
         this.ui.update(0);
         this.spawnFloatingText(this.player.x, this.player.y, "LEVEL OVERDRIVE!", '#ff00ea');
@@ -627,42 +1008,7 @@ export class Game {
         document.getElementById('upgrade-menu')?.classList.remove('hidden');
     }
 
-    triggerBossReward(): void {
-        this.isPaused = true;
-        const skill = this.skillSystem.generateBossSkillDrop();
 
-        const container = document.getElementById('card-container');
-        if (container) container.innerHTML = '';
-
-        const card = document.createElement('div');
-        card.className = 'skill-card';
-        card.innerHTML = `
-            <h3 style="color:${skill.color}; text-shadow:0 0 10px ${skill.color}">MYSTICAL DROP</h3>
-            <h2 style="color:white; margin:10px 0">${skill.name}</h2>
-            <p>${skill.description}</p>
-            <div class="mystical-glow" style="margin-top:15px; font-size:12px; color:#aaa">BOSS REWARD</div>
-        `;
-
-        card.style.borderColor = skill.color;
-        card.style.boxShadow = `0 0 20px ${skill.color}`;
-
-        card.addEventListener('click', () => {
-            this.skillSystem.equipSkill(skill.id);
-            this.acquiredUpgrades.push({
-                name: `Skill: ${skill.name}`,
-                color: skill.color
-            });
-            this.closeUpgradeMenu();
-            this.spawnFloatingText(this.player.x, this.player.y, "POWER ACQUIRED", skill.color);
-        });
-
-        if (container) container.appendChild(card);
-
-        const rerollBtn = document.getElementById('reroll-btn-container');
-        if (rerollBtn) rerollBtn.style.display = 'none';
-
-        document.getElementById('upgrade-menu')?.classList.remove('hidden');
-    }
 
     unlockTikTokReward(): void {
         // Exclusive Reward: "TikTok Pet" (Music Note Drone)
@@ -684,10 +1030,18 @@ export class Game {
         }
     }
 
-    spawnProjectile(x: number, y: number, angle: number, speed: number, damage: number, isEnemy: boolean = false): void {
+    spawnProjectile(x: number, y: number, angle: number, speed: number, damage: number, isEnemy: boolean = false): Projectile {
         const p = this.projectilePool.get();
         p.reset(x, y, angle, speed, damage, isEnemy);
-        if (!isEnemy) this.audio.playShoot();
+
+        // Apply player stats if not enemy
+        if (!isEnemy) {
+            this.audio.playShoot();
+            if (this.player.projectileSize > 1) {
+                p.radius *= this.player.projectileSize;
+            }
+        }
+        return p;
     }
 
     spawnParticles(x: number, y: number, count: number, color: string): void {
@@ -721,6 +1075,13 @@ export class Game {
         }
 
         this.enemies.push(enemy);
+
+        // Emit event
+        this.events.emit(GameEventType.ENEMY_SPAWNED, {
+            enemyType: type,
+            position: { x, y },
+            isElite: enemy.isElite
+        });
     }
 
 
@@ -748,9 +1109,9 @@ export class Game {
         // Let's add `addCoin(amount)` method and call it when Enemy dies with probability. 
         // Visual: Spawn floating text "+1 Coin".
 
-        this.coins += value;
+        this.stateManager.coins += value;
         this.spawnFloatingText(x, y, `+${value} Coin`, '#ffaa00');
-        if (this.ui) this.ui.updateCoins(this.coins); // If UI exists
+        if (this.ui) this.ui.updateCoins(this.stateManager.coins);
     }
 
     addScreenShake(duration: number, intensity: number): void {
@@ -763,7 +1124,30 @@ export class Game {
         if (!this.showFps) return;
         const fpsEl = document.getElementById('fps-counter');
         if (fpsEl) {
-            fpsEl.innerText = `FPS: ${this.currentFps}`;
+            // Add click listener if not already added (hacky check but works for singleton)
+            if (!fpsEl.onclick) {
+                fpsEl.onclick = () => {
+                    this.fpsMode = this.fpsMode === 'BASIC' ? 'ADVANCED' : 'BASIC';
+                };
+                fpsEl.title = "Click to toggle Detail Mode";
+            }
+
+            const metrics = this.performanceMonitor.getMetrics();
+            let text = `FPS: ${metrics.fps}`;
+
+            if (this.fpsMode === 'ADVANCED') {
+                text += ` | Frame: ${metrics.frameTime.toFixed(1)}ms`;
+                if (metrics.updateTime > 0) text += ` | Upd: ${metrics.updateTime.toFixed(1)}ms`;
+                if (metrics.renderTime > 0) text += ` | Ren: ${metrics.renderTime.toFixed(1)}ms`;
+                text += `\nEnt: ${metrics.entityCount} | Proj: ${metrics.projectileCount}`;
+            }
+
+            const warning = this.performanceMonitor.getPerformanceWarning();
+            if (warning) {
+                text += `\n⚠️ ${warning}`;
+            }
+
+            fpsEl.innerText = text;
         }
     }
 

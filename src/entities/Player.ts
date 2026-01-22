@@ -48,11 +48,19 @@ export class Player {
 
     // Upgrades
     public armor: number = 0;
+    public damageReduction: number = 0;
+    public invulnFrameDuration: number = 0.3; // Default 0.3s I-frames
+    public reflectDamage: number = 0;
+    public healthOnKill: number = 0;
+    public gemMultiplier: number = 1.0;
     public critChance: number = 0;
     public piercing: number = 0;
     public chainCount: number = 0;
     public ricochet: number = 0;
     public lifeSteal: number = 0;
+    public damageMultiplier: number = 1.0;
+    public explosiveProjectiles: boolean = false;
+    public homingProjectiles: boolean = false;
     public hasBerserker: boolean = false;
     public berserkerBonus: number = 0;
     public collisionDamage: number = 0;
@@ -64,6 +72,20 @@ export class Player {
     public luck: number = 0;
     public autoShoot: boolean = false;
     public autoAim: boolean = false;
+
+    // Missing Props for CardSystem
+    public dashDamage: number = 0;
+    public hasAirDash: boolean = false;
+    public canWallClimb: boolean = false;
+    public bleedDamage: number = 0;
+    public projectileSize: number = 1.0;
+    public splitShot: number = 0;
+    public explosionRadius: number = 0;
+    public momentumDuration: number = 0;
+    public dashArmorBonus: number = 0;
+    public hasDashDefense: boolean = false;
+    public shieldRegenSpeed: number = 0;
+    public extraUpgradePicks: number = 0;
 
     // Skill System
     public skills: any = {};
@@ -114,7 +136,7 @@ export class Player {
         };
     }
 
-    addSkill(id: string, val: number, rarityMultiplier: number): void {
+    addSkill(id: string, rarityMultiplier: number): void {
         if (!this.skills[id]) {
             this.skills[id] = { val: 0, count: 0, rarityMult: 0 };
         }
@@ -142,7 +164,11 @@ export class Player {
         if (input.isKeyPressed('KeyA') || input.isKeyPressed('ArrowLeft')) ax = -1;
         if (input.isKeyPressed('KeyD') || input.isKeyPressed('ArrowRight')) ax = 1;
 
-        if (input.isKeyPressed('Space') && this.dashCharges > 0 && !this.isDashing && this.energy >= 30) {
+        // Air Dash / Multi-Dash Logic
+        const canDash = this.dashCharges > 0 && this.energy >= 30;
+        const isDashAllowed = !this.isDashing || (this.hasAirDash && this.isDashing); // Allow chain dash if Air Dash
+
+        if (input.isKeyPressed('Space') && canDash && isDashAllowed) {
             this.energy -= 30;
             this.dashCharges--;
             this.startDash(input);
@@ -159,7 +185,8 @@ export class Player {
                 this.velocity.y *= 0.5;
             } else {
                 if (Math.random() > 0.5) this.game.spawnParticles(this.x, this.y, 1, '#00f0ff');
-                this.isInvulnerable = false;
+                // Keep invulnerable during entire dash window
+                this.isInvulnerable = true;
             }
             this.velocity.x = this.dashDir.x * this.dashSpeed;
             this.velocity.y = this.dashDir.y * this.dashSpeed;
@@ -198,23 +225,40 @@ export class Player {
         this.x += this.velocity.x * dt;
         this.y += this.velocity.y * dt;
 
+        // Bounds checking - keep player within reasonable world bounds
+        // (Allow some overflow for gameplay, but prevent extreme values)
+        const maxWorldSize = 100000;
+        this.x = Math.max(-maxWorldSize, Math.min(maxWorldSize, this.x));
+        this.y = Math.max(-maxWorldSize, Math.min(maxWorldSize, this.y));
+
         const mouse = input.getMousePosition();
         if (this.autoAim) {
+            // Optimize: Only check enemies within reasonable range and cache result
             let closest = null;
-            let minDist = 600;
-            this.game.enemies.forEach((e: any) => {
-                if (e.markedForDeletion) return;
+            let minDistSq = 600 * 600; // Use squared distance to avoid sqrt
+            const enemies = this.game.enemies;
+
+            // Early exit optimization: limit search to nearby enemies
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (e.markedForDeletion) continue;
+
                 const dx = e.x - this.x;
                 const dy = e.y - this.y;
-                const d = Math.sqrt(dx * dx + dy * dy);
-                if (d < minDist) { minDist = d; closest = e; }
-            });
+                const distSq = dx * dx + dy * dy;
+
+                if (distSq < minDistSq) {
+                    minDistSq = distSq;
+                    closest = e;
+                }
+            }
 
             if (closest) {
                 const dx = (closest as any).x - this.x;
                 const dy = (closest as any).y - this.y;
                 this.angle = Math.atan2(dy, dx);
-            } else if (input.mouseMoved) {
+            } else {
+                // Fallback to mouse position if no enemy found
                 const camX = this.game.camera ? this.game.camera.x : 0;
                 const camY = this.game.camera ? this.game.camera.y : 0;
                 const dx = mouse.x - (this.x - camX);
@@ -267,9 +311,26 @@ export class Player {
         const totalShots = this.projectileCount;
         const spread = 0.2;
 
+        // Apply crit chance
+        const finalDamage = (this.critChance && Math.random() < this.critChance)
+            ? damage * 2
+            : damage;
+
         for (let i = 0; i < totalShots; i++) {
             const angleOffset = totalShots > 1 ? (i - (totalShots - 1) / 2) * spread : 0;
-            this.game.spawnProjectile(this.x, this.y, this.angle + angleOffset, speed, damage);
+            const proj = this.game.spawnProjectile(this.x, this.y, this.angle + angleOffset, speed, finalDamage);
+
+            // Apply special properties from cards
+            if (this.piercing > 0) {
+                proj.isPiercing = true;
+                proj.maxPierce = this.piercing;
+            }
+            if (this.explosiveProjectiles) {
+                proj.isExplosive = true;
+            }
+            if (this.homingProjectiles) {
+                proj.isHoming = true;
+            }
         }
     }
 }

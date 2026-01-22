@@ -1,22 +1,24 @@
 import { CONFIG } from './Config';
 
-// Declare global from CDN
-declare const supabase: any;
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-let supabaseInstance: any = null;
+let supabaseInstance: SupabaseClient | null = null;
 
-export const getSupabase = () => {
+export const getSupabase = (): SupabaseClient | null => {
     if (supabaseInstance) return supabaseInstance;
 
-    if (typeof supabase !== 'undefined') {
-        try {
-            supabaseInstance = supabase.createClient(CONFIG.SUPABASE.URL, CONFIG.SUPABASE.KEY);
-            console.log("[SHARED] Supabase initialized");
-        } catch (e) {
-            console.error("[SHARED] Supabase init failed:", e);
+    try {
+        const url = CONFIG.SUPABASE.URL;
+        const key = CONFIG.SUPABASE.KEY;
+        if (!url || !key) {
+            console.error("[SHARED] Supabase URL or KEY is missing in Config!");
+            return null;
         }
-    } else {
-        console.warn("[SHARED] Supabase library not found!");
+        supabaseInstance = createClient(url, key);
+        console.log("[SHARED] Supabase initialized");
+    } catch (e) {
+        console.error("[SHARED] Supabase init failed:", e);
+        supabaseInstance = null;
     }
     return supabaseInstance;
 };
