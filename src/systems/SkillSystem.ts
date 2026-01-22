@@ -16,10 +16,11 @@ export class SkillSystem {
     constructor(game: any) {
         this.game = game;
         this.activeSkills = [];
+        this.activeSkills = [];
         this.bagSkills = [];
-        this.maxSkills = 3;
+        this.maxSkills = 9;
         this.mysticalSkills = [];
-        this.skillKeys = ['Digit1', 'Digit2', 'Digit3'];
+        this.skillKeys = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
         this.skillDefinitions = SKILL_DATA;
         this.activeEffects = [];
 

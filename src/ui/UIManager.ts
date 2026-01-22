@@ -668,48 +668,52 @@ export class UIManager {
         const active = this.game.skillSystem ? this.game.skillSystem.activeSkills : [];
         const bag = this.game.skillSystem ? this.game.skillSystem.bagSkills : [];
 
-        // Update Active Slots (0-2)
         // Update Active Slots (Dynamic)
+        // Check for maxSkills (default 3)
         const maxSlots = this.game.skillSystem ? this.game.skillSystem.maxSkills : 3;
-        const slotsContainer = document.getElementById('active-skills-row'); // Assuming a container exists or we need to find parent
+        const slotsContainer = document.getElementById('active-skills-row');
 
-        // Wait, the HTML structure is likely static hardcoded active slots in index.html?
-        // We need to check if we can append valid slots or if we must rely on existing DOM.
-        // If the DOM is hardcoded 3 slots, we need to generate them.
+        if (slotsContainer) {
+            // Check if we need to rebuild (count mismatch)
+            const currentSlots = slotsContainer.querySelectorAll('.slot-manage').length;
+            if (currentSlots !== maxSlots) {
+                slotsContainer.innerHTML = ''; // Rebuild
+                for (let i = 0; i < maxSlots; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'slot-manage';
+                    div.dataset.slot = i.toString();
 
-        // Current implementation tries to find existing IDs slot-0-skill. 
-        // If we want more slots, we must create DOM elements if they don't exist.
+                    const innerDiv = document.createElement('div');
+                    innerDiv.id = `slot-${i}-skill`;
+                    innerDiv.innerText = 'Empty';
 
-        if (!slotsContainer) {
-            // Fallback to legacy loop if we can't find container to append to
-            for (let i = 0; i < maxSlots; i++) {
-                const el = document.getElementById(`slot-${i}-skill`);
-                const slotEl = document.querySelector(`.slot-manage[data-slot="${i}"]`) as HTMLElement;
-                if (el && slotEl) {
-                    slotEl.classList.remove('hidden'); // Ensure visible
-                    const skill = active[i];
-                    if (skill) {
-                        const icon = this.getSkillIcon(skill.id || skill.name);
-                        el.innerHTML = buildSkillHtml(icon, skill.name, skill.color);
-                        el.style.color = sanitize(skill.color);
-                        slotEl.style.borderColor = sanitize(skill.color);
-                    } else {
-                        el.innerHTML = '<span style="color:#666;">Empty</span>';
-                        el.style.color = '#666';
-                        slotEl.style.borderColor = '#444';
-                    }
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'slot-label';
+                    labelDiv.innerText = `KEY ${i + 1}`;
+
+                    div.appendChild(innerDiv);
+                    div.appendChild(labelDiv);
+                    slotsContainer.appendChild(div);
                 }
             }
-        } else {
-            // Robust generation logic
-            slotsContainer.innerHTML = ''; // Rebuild
-            for (let i = 0; i < maxSlots; i++) {
+        }
+
+        // Render Slots
+        for (let i = 0; i < maxSlots; i++) {
+            const el = document.getElementById(`slot-${i}-skill`);
+            const slotEl = document.querySelector(`.slot-manage[data-slot="${i}"]`) as HTMLElement;
+            if (el && slotEl) {
                 const skill = active[i];
-                const div = document.createElement('div');
-                div.className = 'slot-manage';
-                div.dataset.slot = i.toString();
-                // Add your default styles or class details here
-                // ...
+                if (skill) {
+                    const icon = this.getSkillIcon(skill.id || skill.name);
+                    el.innerHTML = buildSkillHtml(icon, skill.name, skill.color);
+                    el.style.color = sanitize(skill.color);
+                    slotEl.style.borderColor = sanitize(skill.color);
+                } else {
+                    el.innerHTML = '<span style="color:#666;">Empty</span>';
+                    el.style.color = '#666';
+                    slotEl.style.borderColor = '#444';
+                }
             }
         }
 
