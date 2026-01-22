@@ -7,7 +7,7 @@ export class SkillSystem {
     public activeSkills: any[]; // ExtendedSkillDef[]
     public bagSkills: any[];
     public maxSkills: number;
-    private readonly mysticalSkills: string[];
+    private mysticalSkills: string[];
     private readonly skillKeys: string[];
     private readonly skillDefinitions: any;
     private activeEffects: ActiveEffect[];
@@ -60,7 +60,16 @@ export class SkillSystem {
             [SkillType.BEAM_ERASURE]: this.executeVoidErasure.bind(this), // Reuse logic
             [SkillType.DASH_SLASH]: this.executeShieldBash.bind(this), // Reuse dash logic
             [SkillType.DIMENSION_RIFT]: this.executeBlackHole.bind(this), // Reuse logic
+            [SkillType.AOE_DELAYED_NUKE]: this.executeSupernova.bind(this),
+            [SkillType.SUMMON_MINION]: this.executeVoidGate.bind(this),
+            [SkillType.GLOBAL_FREEZE_SHATTER]: this.executeAbsoluteZero.bind(this),
         };
+    }
+
+    reset(): void {
+        this.activeEffects = [];
+        this.mysticalSkills = [];
+        this.activeSkills = [];
     }
 
     update(dt: number): void {
@@ -344,15 +353,35 @@ export class SkillSystem {
 
         for (let i = 0; i < strikes; i++) {
             setTimeout(() => {
-                const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * skill.radius;
-                const x = center.x + Math.cos(angle) * dist;
-                const y = center.y + Math.sin(angle) * dist;
+                let x, y;
+                // For Hinokami, try to target a random enemy within radius to guarantee hits
+                if (isSlash) {
+                    const nearby = game.enemies.filter((e: any) => {
+                        const d = Math.hypot(e.x - center.x, e.y - center.y);
+                        return !e.markedForDeletion && d < skill.radius;
+                    });
+
+                    if (nearby.length > 0) {
+                        const target = nearby[Math.floor(Math.random() * nearby.length)];
+                        x = target.x;
+                        y = target.y;
+                    } else {
+                        // random fallback
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * skill.radius;
+                        x = center.x + Math.cos(angle) * dist;
+                        y = center.y + Math.sin(angle) * dist;
+                    }
+                } else {
+                    // Classic lightning behavior (random)
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * skill.radius;
+                    x = center.x + Math.cos(angle) * dist;
+                    y = center.y + Math.sin(angle) * dist;
+                }
 
                 if (isSlash) {
-                    // For Hinokami Kagura / Omni Slash
                     game.spawnParticles(x, y, 5, skill.color);
-                    // Add a visual slash effect if possible, for now particles + audio
                     game.audio?.playSlash?.();
                 } else {
                     game.spawnParticles(x, y, 5, skill.color);
@@ -363,7 +392,9 @@ export class SkillSystem {
                     const dx = e.x - x;
                     const dy = e.y - y;
                     const d = Math.hypot(dx, dy);
-                    if (d < 50) e.takeDamage(skill.damage, isSlash ? 'slash' : 'lightning');
+                    // Increased hit radius for slash (was 50) to ensure it feels generous
+                    const hitRadius = isSlash ? 80 : 50;
+                    if (d < hitRadius) e.takeDamage(skill.damage, isSlash ? 'slash' : 'lightning');
                 });
             }, i * 100);
         }
@@ -529,26 +560,31 @@ export class SkillSystem {
 
     executePoisonCloud(game: any, skill: any): void {
         const center = this.getTargetPosition(game);
-        this.activeEffects.push({
+
+        const effect: any = {
             type: 'POISON_CLOUD',
             x: center.x,
             y: center.y,
             radius: skill.radius,
             damagePerSec: skill.damagePerSec,
             timer: skill.duration,
-            color: skill.color,
-            update: (_dt: number, g: any) => {
-                const effect: any = this.activeEffects.find(e => e.type === 'POISON_CLOUD');
-                if (!effect) return;
-                g.enemies.forEach((e: any) => {
-                    if (e.markedForDeletion) return;
-                    const dx = e.x - effect.x;
-                    const dy = e.y - effect.y;
-                    const dist = Math.hypot(dx, dy);
-                    if (dist < effect.radius) e.poison(effect.damagePerSec, 1);
-                });
-            }
-        });
+            color: skill.color
+        };
+
+        effect.update = (_dt: number, g: any) => {
+            // Now safely using 'effect' from closure
+            g.enemies.forEach((e: any) => {
+                if (e.markedForDeletion) return;
+                const dx = e.x - effect.x;
+                const dy = e.y - effect.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist < effect.radius) {
+                    e.poison(effect.damagePerSec, 1);
+                }
+            });
+        };
+
+        this.activeEffects.push(effect);
     }
 
     executeShockwave(game: any, skill: any): void {
@@ -819,6 +855,148 @@ export class SkillSystem {
         });
     }
 
+    executeSupernova(game: any, skill: any): void {
+        const center = { x: game.player.x, y: game.player.y - 100 }; // Floating above player
+        game.spawnFloatingText(game.player.x, game.player.y, "SUPERNOVA CHARGING...", skill.color);
+
+        // Vibration / Rumble effect
+        game.addScreenShake(0.2, 5);
+
+        this.activeEffects.push({
+            type: 'SUPERNOVA_CHARGE',
+            x: center.x,
+            y: center.y,
+            radius: 50,
+            maxRadius: 300,
+            timer: skill.duration,
+            color: skill.color,
+            update: (dt: number, g: any) => {
+                const self: any = this.activeEffects.find(e => e.type === 'SUPERNOVA_CHARGE');
+                if (!self) return;
+                self.x = g.player.x;
+                self.y = g.player.y - 100;
+                // Grow logic
+                self.radius += dt * 50;
+                // Visual only (particles)
+                if (Math.random() < 0.3) {
+                    g.spawnParticles(self.x + (Math.random() - 0.5) * self.radius, self.y + (Math.random() - 0.5) * self.radius, 1, skill.color);
+                }
+            },
+            onExpire: (g: any) => {
+                // EXPLOSION
+                g.addScreenShake(1.0, 30);
+                // Center explosion on the visual sun (y - 100)
+                const explosionX = g.player.x;
+                const explosionY = g.player.y - 100;
+
+                g.enemies.forEach((e: any) => {
+                    if (e.markedForDeletion) return;
+                    // Screen wide Nuke
+                    // Check if on screen or close enough
+                    const dist = Math.hypot(e.x - explosionX, e.y - explosionY);
+                    if (dist < skill.radius) {
+                        e.takeDamage(skill.damage, 'supernova');
+                    }
+                });
+                for (let i = 0; i < 50; i++) {
+                    g.spawnParticles(explosionX, explosionY, 10, '#ffffff'); // Flash
+                }
+                g.spawnFloatingText(g.player.x, g.player.y, "SUPERNOVA!!!", "#ff0000");
+                g.audio?.playExplosion?.();
+            }
+        });
+    }
+
+    executeVoidGate(game: any, skill: any): void {
+        const center = this.getTargetPosition(game);
+        game.spawnFloatingText(center.x, center.y, "VOID GATE OPENED", skill.color);
+
+        this.activeEffects.push({
+            type: 'VOID_GATE',
+            x: center.x,
+            y: center.y,
+            timer: skill.duration,
+            spawnTimer: 0,
+            spawnInterval: 0.5,
+            count: skill.count || 5,
+            update: (dt: number, g: any) => {
+                const self: any = this.activeEffects.find(e => e.type === 'VOID_GATE' && e.x === center.x);
+                if (!self) return;
+
+                self.spawnTimer += dt;
+                if (self.spawnTimer >= self.spawnInterval) {
+                    self.spawnTimer = 0;
+                    // Spawn Wisp logic
+                    this.spawnVoidWisp(g, self.x, self.y, skill);
+                }
+
+                // Portal visual
+                g.spawnParticles(self.x, self.y, 2, skill.color);
+            }
+        });
+    }
+
+    spawnVoidWisp(game: any, x: number, y: number, skill: any): void {
+        // Increase radius and speed for better "tracking" feel
+        game.projectilePool.get({
+            x: x,
+            y: y,
+            angle: Math.random() * Math.PI * 2,
+            speed: 500, // Faster
+            damage: skill.damage,
+            radius: 30, // Much bigger hit box (was 8)
+            duration: 5,
+            color: '#aa00ff',
+            penetration: 1,
+            isEnemy: false,
+        });
+
+        // Simple fix: find nearest enemy and shoot at them
+        const nearest = game.enemies.find((e: any) => !e.markedForDeletion);
+        if (nearest) {
+            const angle = Math.atan2(nearest.y - y, nearest.x - x);
+            const proj = game.projectilePool.active[game.projectilePool.active.length - 1]; // Hacky grab, works because we just added it
+            if (proj) {
+                proj.angle = angle;
+                proj.velocity.x = Math.cos(angle) * proj.speed;
+                proj.velocity.y = Math.sin(angle) * proj.speed;
+            }
+        }
+    }
+
+    executeAbsoluteZero(game: any, skill: any): void {
+        game.addScreenShake(0.5, 15);
+        game.spawnFloatingText(game.player.x, game.player.y, "ABSOLUTE ZERO", skill.color);
+
+        // Freeze everyone
+        game.enemies.forEach((e: any) => {
+            if (!e.markedForDeletion) {
+                e.freeze(skill.duration);
+                // Visual tint?
+                // Assuming enemy has tint support or we spawn particles on them
+                game.spawnParticles(e.x, e.y, 5, "#00ffff");
+            }
+        });
+
+        // Shatter Effect after delay
+        this.activeEffects.push({
+            type: 'SHATTER_TIMER',
+            timer: skill.duration,
+            update: (_dt: number, _g: any) => { },
+            onExpire: (g: any) => {
+                g.enemies.forEach((e: any) => {
+                    if (!e.markedForDeletion) {
+                        const dmg = skill.damage; // Shatter damage
+                        e.takeDamage(dmg, 'ice');
+                        g.spawnParticles(e.x, e.y, 10, "#ffffff");
+                    }
+                });
+                g.spawnFloatingText(g.player.x, g.player.y, "SHATTER!", "#00ffff");
+                g.audio?.playFreeze?.(); // Reuse freeze sound
+            }
+        });
+    }
+
     executeHealAura(_game: any, skill: any): void {
         this.activeEffects.push({
             type: 'HEAL_AURA',
@@ -916,7 +1094,8 @@ export class SkillSystem {
                     const dy = e.y - center.y;
                     const dist = Math.hypot(dx, dy);
                     if (dist < skill.radius) {
-                        e.speed = e.speed * (1 - skill.slowPercent);
+                        // Apply slow (doesn't stack infinitely now)
+                        e.slowFactor = (1 - (skill.slowPercent || 0.5));
                     }
                 });
             }

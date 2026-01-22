@@ -27,7 +27,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 25,
         damage: 60,
         count: 5,
-        radius: 80,
+        radius: 150, // Increased from 80
         color: '#ff8800',
         rarity: Rarity.LEGENDARY,
     },
@@ -56,7 +56,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 20,
         damage: 200,
         delay: 3,
-        radius: 180,
+        radius: 250, // Increased from 180
         pullForce: 300,
         color: '#660000',
         rarity: Rarity.EPIC,
@@ -111,7 +111,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         descriptionTH: 'ยิงลูกไฟระเบิดใส่ศัตรู',
         cooldown: 8,
         damage: 40,
-        radius: 100,
+        radius: 140, // Increased from 100
         speed: 400,
         color: '#ff4400',
         rarity: Rarity.RARE,
@@ -127,7 +127,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 12,
         damage: 30,
         freezeDuration: 3,
-        radius: 80,
+        radius: 120, // Increased from 80
         speed: 350,
         color: '#00ccff',
         rarity: Rarity.RARE,
@@ -144,7 +144,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 10,
         damagePerSec: 15,
         duration: 5,
-        radius: 120,
+        radius: 180, // Increased from 120
         color: '#00ff00',
         rarity: Rarity.UNCOMMON,
         maxStacks: 7,
@@ -159,7 +159,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 6,
         damage: 15,
         knockback: 300,
-        radius: 150,
+        radius: 220, // Increased from 150
         color: '#88ccff',
         rarity: Rarity.UNCOMMON,
     },
@@ -301,7 +301,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 40,
         healPercent: 0.05,
         duration: 8,
-        radius: 200,
+        radius: 250, // Increased from 200
         color: '#00ff88',
         rarity: Rarity.EPIC,
     },
@@ -331,7 +331,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         damagePerSec: 20,
         duration: 4,
         coneAngle: 60,
-        range: 200,
+        range: 300, // Increased from 200
         color: '#88ff00',
         rarity: Rarity.RARE,
     },
@@ -344,7 +344,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         descriptionTH: 'แช่แข็งศัตรูทั้งหมดรอบตัว 3 วินาที',
         cooldown: 18,
         freezeDuration: 3,
-        radius: 180,
+        radius: 250, // Increased from 180
         color: '#88ccff',
         rarity: Rarity.RARE,
     },
@@ -358,7 +358,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 14,
         damage: 35,
         stunDuration: 1.5,
-        radius: 150,
+        radius: 220, // Increased from 150
         color: '#ffff88',
         rarity: Rarity.RARE,
     },
@@ -372,7 +372,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         descriptionTH: "พุ่งชนและทำให้ศัตรูมึนงง",
         cooldown: 8,
         damage: 50,
-        range: 100,
+        range: 200, // Increased from 100
         stunDuration: 2,
         color: "#ffff00",
         rarity: Rarity.UNCOMMON,
@@ -400,7 +400,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 12,
         damage: 35,
         strikes: 12,
-        radius: 250,
+        radius: 300, // Increased from 250
         color: '#ff00ff',
         rarity: Rarity.EPIC,
     },
@@ -414,7 +414,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 10,
         damage: 45,
         knockback: -200, // Negative = pull
-        radius: 180,
+        radius: 250, // Increased from 180
         color: '#4400aa',
         rarity: Rarity.EPIC,
     },
@@ -428,7 +428,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 18,
         damagePerSec: 25,
         duration: 6,
-        radius: 150,
+        radius: 220, // Increased from 150
         color: '#ffff00',
         rarity: Rarity.EPIC,
     },
@@ -443,7 +443,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         descriptionTH: 'ยิงกระสุนระเบิดสร้างความเสียหายพื้นที่',
         cooldown: 6,
         damage: 50,
-        radius: 120,
+        radius: 160, // Increased from 120
         speed: 500,
         color: '#ff6600',
         rarity: Rarity.RARE,
@@ -458,7 +458,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 9,
         damage: 40,
         freezeDuration: 2.5,
-        radius: 60,
+        radius: 100, // Increased from 60
         speed: 600,
         color: '#00ffff',
         rarity: Rarity.RARE,
@@ -474,7 +474,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         damage: 20,
         damagePerSec: 10,
         duration: 4,
-        radius: 50,
+        radius: 100, // Increased from 50
         speed: 450,
         color: '#00ff00',
         rarity: Rarity.RARE,
@@ -489,7 +489,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 8,
         damage: 10,
         knockback: -250, // Negative = pull
-        radius: 200,
+        radius: 300, // Increased from 200
         color: '#8888ff',
         rarity: Rarity.RARE,
     },
@@ -530,7 +530,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 5,
         damage: 25,
         knockback: 150,
-        radius: 100,
+        radius: 150, // Increased from 100
         color: '#ff8800',
         rarity: Rarity.UNCOMMON,
     },
@@ -543,7 +543,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         descriptionTH: 'สร้างสนามที่ทำให้ศัตรูช้าลง 50%',
         cooldown: 10,
         duration: 5,
-        radius: 180,
+        radius: 250, // Increased from 180
         slowPercent: 0.5,
         color: '#88ccff',
         rarity: Rarity.UNCOMMON,
@@ -560,7 +560,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 40,
         damage: 60,
         duration: 8,
-        radius: 220,
+        radius: 280, // Increased from 220
         pullForce: 250,
         color: '#ff00ff',
         rarity: Rarity.MYTHIC,
@@ -587,7 +587,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         descriptionTH: 'สังหารศัตรูที่ HP ต่ำกว่า 20% ทันที',
         cooldown: 25,
         threshold: 0.2,
-        radius: 250,
+        radius: 300, // Increased from 250
         color: '#aa00ff',
         rarity: Rarity.MYTHIC,
     },
@@ -721,7 +721,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         cooldown: 10,
         damage: 30,
         knockback: 200,
-        radius: 200,
+        radius: 250, // Increased from 200
         color: '#00ccff',
         rarity: Rarity.RARE,
     },
@@ -739,6 +739,47 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
         color: '#ff6600',
         renderStyle: 'slash',
         rarity: Rarity.LEGENDARY,
+    },
+
+    SUPERNOVA: {
+        id: 'SUPERNOVA',
+        name: 'Supernova',
+        description: 'Summons a dying star that explodes, dealing massive damage to all enemies.',
+        type: SkillType.AOE_DELAYED_NUKE,
+        cooldown: 60,
+        damage: 5000,
+        radius: 800, // Screen wide
+        duration: 3, // Charge up time
+        color: '#ffaa00',
+        rarity: Rarity.GOD,
+        isMystical: true,
+    },
+
+    VOID_GATE: {
+        id: 'VOID_GATE',
+        name: 'Void Gate',
+        description: 'Opens a portal that spawns Void Wisps to hunt down enemies.',
+        type: SkillType.SUMMON_MINION,
+        cooldown: 45,
+        damage: 300,
+        duration: 10,
+        count: 5, // Number of wisps per wave
+        color: '#8800ff',
+        rarity: Rarity.MYTHIC,
+        isMystical: true,
+    },
+
+    ABSOLUTE_ZERO: {
+        id: 'ABSOLUTE_ZERO',
+        name: 'Absolute Zero',
+        description: 'Freezes time and shatters enemies with overwhelming cold.',
+        type: SkillType.GLOBAL_FREEZE_SHATTER,
+        cooldown: 50,
+        damage: 1000, // Shatter damage
+        duration: 5, // Freeze duration
+        color: '#00ffff',
+        rarity: Rarity.MYTHIC,
+        isMystical: true,
     },
 
     // One Piece - Luffy

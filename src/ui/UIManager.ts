@@ -179,12 +179,12 @@ export class UIManager {
                 userDisplay.innerText = `PILOT: ${this.game.loginSystem.username}`;
                 userDisplay.classList.remove('hidden');
             }
-            if (tiktokBtn) tiktokBtn.classList.remove('hidden');
+            if (tiktokBtn) tiktokBtn.classList.add('hidden'); // HIDDEN FOR NOW
         } else {
             if (loginBtn) loginBtn.classList.remove('hidden');
             if (logoutBtn) logoutBtn.classList.add('hidden');
             if (userDisplay) userDisplay.classList.add('hidden');
-            if (tiktokBtn) tiktokBtn.classList.add('hidden'); // Only logged in users can link? Or optional. Let's hide to encourage login.
+            if (tiktokBtn) tiktokBtn.classList.add('hidden');
         }
     }
 
@@ -527,10 +527,11 @@ export class UIManager {
         if (!container) return;
 
         container.addEventListener('dragstart', (e: any) => {
-            if (e.target && e.target.classList && (e.target.classList.contains('slot-manage') || e.target.classList.contains('bag-slot'))) {
-                const slotIndex = parseInt(e.target.dataset.slot || '0');
+            const targetEl = e.target.closest('.slot-manage, .bag-slot');
+            if (targetEl) {
+                const slotIndex = parseInt(targetEl.dataset.slot || '0');
                 this.draggedSlot = slotIndex;
-                e.target.classList.add('dragging');
+                targetEl.classList.add('dragging');
                 if (e.dataTransfer) {
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('text/plain', slotIndex.toString());
@@ -546,13 +547,18 @@ export class UIManager {
         container.addEventListener('dragover', (e: any) => {
             e.preventDefault();
             if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-            if (e.target && e.target.classList && (e.target.classList.contains('slot-manage') || e.target.classList.contains('bag-slot'))) {
-                e.target.classList.add('drag-over');
+
+            const targetEl = e.target.closest('.slot-manage, .bag-slot');
+            if (targetEl) {
+                targetEl.classList.add('drag-over');
             }
         });
 
         container.addEventListener('dragleave', (e: any) => {
-            if (e.target) e.target.classList.remove('drag-over');
+            const targetEl = e.target.closest('.slot-manage, .bag-slot');
+            if (targetEl) {
+                targetEl.classList.remove('drag-over');
+            }
         });
 
         container.addEventListener('drop', (e: any) => {
@@ -663,22 +669,47 @@ export class UIManager {
         const bag = this.game.skillSystem ? this.game.skillSystem.bagSkills : [];
 
         // Update Active Slots (0-2)
-        for (let i = 0; i < 3; i++) {
-            const el = document.getElementById(`slot-${i}-skill`);
-            const slotEl = document.querySelector(`.slot-manage[data-slot="${i}"]`) as HTMLElement;
-            if (el && slotEl) {
-                const skill = active[i];
-                // Use buildSkillHtml to safely construct HTML with colors/icons
-                if (skill) {
-                    const icon = this.getSkillIcon(skill.id || skill.name);
-                    el.innerHTML = buildSkillHtml(icon, skill.name, skill.color);
-                    el.style.color = sanitize(skill.color);
-                    slotEl.style.borderColor = sanitize(skill.color);
-                } else {
-                    el.innerHTML = '<span style="color:#666;">Empty</span>';
-                    el.style.color = '#666';
-                    slotEl.style.borderColor = '#444';
+        // Update Active Slots (Dynamic)
+        const maxSlots = this.game.skillSystem ? this.game.skillSystem.maxSkills : 3;
+        const slotsContainer = document.getElementById('active-skills-row'); // Assuming a container exists or we need to find parent
+
+        // Wait, the HTML structure is likely static hardcoded active slots in index.html?
+        // We need to check if we can append valid slots or if we must rely on existing DOM.
+        // If the DOM is hardcoded 3 slots, we need to generate them.
+
+        // Current implementation tries to find existing IDs slot-0-skill. 
+        // If we want more slots, we must create DOM elements if they don't exist.
+
+        if (!slotsContainer) {
+            // Fallback to legacy loop if we can't find container to append to
+            for (let i = 0; i < maxSlots; i++) {
+                const el = document.getElementById(`slot-${i}-skill`);
+                const slotEl = document.querySelector(`.slot-manage[data-slot="${i}"]`) as HTMLElement;
+                if (el && slotEl) {
+                    slotEl.classList.remove('hidden'); // Ensure visible
+                    const skill = active[i];
+                    if (skill) {
+                        const icon = this.getSkillIcon(skill.id || skill.name);
+                        el.innerHTML = buildSkillHtml(icon, skill.name, skill.color);
+                        el.style.color = sanitize(skill.color);
+                        slotEl.style.borderColor = sanitize(skill.color);
+                    } else {
+                        el.innerHTML = '<span style="color:#666;">Empty</span>';
+                        el.style.color = '#666';
+                        slotEl.style.borderColor = '#444';
+                    }
                 }
+            }
+        } else {
+            // Robust generation logic
+            slotsContainer.innerHTML = ''; // Rebuild
+            for (let i = 0; i < maxSlots; i++) {
+                const skill = active[i];
+                const div = document.createElement('div');
+                div.className = 'slot-manage';
+                div.dataset.slot = i.toString();
+                // Add your default styles or class details here
+                // ...
             }
         }
 
@@ -693,6 +724,7 @@ export class UIManager {
             }
 
             bag.forEach((skill: any, index: number) => {
+                if (!skill) return; // Skip holes/undefined
                 const slotId = 100 + index;
                 const div = document.createElement('div');
                 div.className = 'bag-slot';

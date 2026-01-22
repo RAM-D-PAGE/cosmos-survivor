@@ -69,29 +69,26 @@ export class UpgradeSystem {
             this.game.skillSystem.activeSkills.length < this.game.skillSystem.maxSkills &&
             rand < 0.6) {
 
-            let skill = this.game.skillSystem.generateRandomSkill('UNCOMMON');
+            // Improved Logic: Filter available skills first
+            const validSkills = Object.values(this.game.skillSystem.skillDefinitions).filter((def: any) => {
+                // Must be UNCOMMON (pool level) and NOT mystical
+                if (def.rarity !== 'UNCOMMON' || def.isMystical) return false;
 
-            // Filter maxed skills (Max 3 stacks)
-            let attempts = 0;
-
-            // Helper to check if maxed
-            const checkMaxed = (id: string) => {
-                const def = this.game.skillSystem.skillDefinitions[id];
-                const max = def ? (def.maxStacks || 3) : 3;
-                const active = this.game.skillSystem.activeSkills.find((s: any) => s.id === id);
-                const bag = this.game.skillSystem.bagSkills.find((s: any) => s.id === id);
+                // Check max stacks
+                const max = def.maxStacks || 3;
+                const active = this.game.skillSystem.activeSkills.find((s: any) => s.id === def.id);
+                const bag = this.game.skillSystem.bagSkills.find((s: any) => s.id === def.id);
                 const existing = active || bag;
-                return existing && (existing.count >= max);
-            };
 
-            while (skill && checkMaxed(skill.id) && attempts < 10) {
-                skill = this.game.skillSystem.generateRandomSkill('UNCOMMON');
-                attempts++;
-            }
+                // If existing count is >= max, exclude it
+                return !existing || (existing.count < max);
+            });
 
-            if (skill && !checkMaxed(skill.id)) {
-                return this.createSkillCard(skill);
+            if (validSkills.length > 0) {
+                const randomSkill = validSkills[Math.floor(Math.random() * validSkills.length)];
+                return this.createSkillCard(randomSkill);
             } else {
+                // No valid skills found? Fallback to cards
                 return this.cardSystem.generateCard();
             }
         }
@@ -145,11 +142,20 @@ export class UpgradeSystem {
         const maxStacks = skillDef.maxStacks || 3;
 
         if (currentCount > 0) {
-            desc = `<b>Level ${currentCount + 1} Upgrade</b><br>Stack this card to boost power!`;
-            if (currentCount === maxStacks - 1) {
-                desc += `<br><span style="color:#00ff00">MAX LEVEL BONUS: Cooldown Reduction!</span>`;
+            if (isTH) {
+                desc = `<b>อัปเกรดเลเวล ${currentCount + 1}</b><br>สะสมการ์ดนี้เพื่อเพิ่มพลัง!`;
+                if (currentCount === maxStacks - 1) {
+                    desc += `<br><span style="color:#00ff00">โบนัสเลเวลสูงสุด: ลดคูลดาวน์!</span>`;
+                } else {
+                    desc += `<br><span style="color:#00ccff">โบนัส: เพิ่มค่าสถานะ</span>`;
+                }
             } else {
-                desc += `<br><span style="color:#00ccff">Bonus: Stats Increased</span>`;
+                desc = `<b>Level ${currentCount + 1} Upgrade</b><br>Stack this card to boost power!`;
+                if (currentCount === maxStacks - 1) {
+                    desc += `<br><span style="color:#00ff00">MAX LEVEL BONUS: Cooldown Reduction!</span>`;
+                } else {
+                    desc += `<br><span style="color:#00ccff">Bonus: Stats Increased</span>`;
+                }
             }
         }
 

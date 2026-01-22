@@ -324,6 +324,13 @@ export class Game {
         this.enemiesKilled = 0;
         this.finalScore = 0;
         this.accumulator = 0;
+
+        // Reset legacy properties to ensure sync with StateManager
+        this.level = 1;
+        this.exp = 0;
+        this.coins = 0;
+        this.difficultyMultiplier = 0;
+
         this.stateManager.exp = 0;
         this.stateManager.level = 1;
         this.stateManager.coins = 0;

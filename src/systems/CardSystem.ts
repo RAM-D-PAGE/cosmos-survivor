@@ -25,7 +25,7 @@ export class CardSystem {
     private cardDefinitions: Record<string, CardDefinition>;
     private rarities: CardRarity[];
     private mysticalRarity: CardRarity;
-    private _bossRarity: CardRarity;
+    // private _bossRarity: CardRarity; // Removed unused
     private acquiredCards: Record<string, number>;
 
     constructor(game: any) {
@@ -913,7 +913,7 @@ export class CardSystem {
 
         // Special rarities (Not in standard rotation)
         this.mysticalRarity = { name: 'Mystical', multiplier: 1, color: '#ff00ea' };
-        this._bossRarity = { name: 'Boss', multiplier: 15, color: '#ff0044' };
+        // this._bossRarity = { name: 'Boss', multiplier: 15, color: '#ff0044' };
 
         // Player's acquired cards (for stacking)
         this.acquiredCards = {}; // { cardId: stackCount }
@@ -925,7 +925,32 @@ export class CardSystem {
         const rarity = this.rollRarity(luck);
 
         // Pick a card based on weights
-        const cardList = Object.values(this.cardDefinitions).filter(c => !c.isMystical); // Exclude Mystical from standard pool
+        // Filter out maxed cards upfront
+        const cardList = Object.values(this.cardDefinitions).filter(c => {
+            if (c.isMystical) return false;
+
+            // Check max stacks (SKIP CONSUMABLES from this check if they have no limit, but here they do have stacks in logic)
+            // Actually, consumables like 'Heal' might not have a hard limit?
+            // Existing logic checked: currentStacks >= maxStacks && category !== 'CONSUMABLE'
+
+            const currentStacks = this.acquiredCards[c.id] || 0;
+            if (c.category !== 'CONSUMABLE' && currentStacks >= c.maxStacks) {
+                return false;
+            }
+            return true;
+        });
+
+        // Fallback: If ALL cards are maxed, return a consumable (Heal) or just coin
+        if (cardList.length === 0) {
+            // Return a small heal or coin reward if nothing left
+            return {
+                ...this.cardDefinitions['QUICK_HEAL'] || this.cardDefinitions['DAMAGE_UP'], // Fallback
+                displayName: "Maxed Out Reward (Heal)",
+                value: 20,
+                apply: (g: any) => { g.player.hp = Math.min(g.player.maxHp, g.player.hp + 20); }
+            };
+        }
+
         const totalWeight = cardList.reduce((sum, c) => sum + c.weight, 0);
 
         let roll = Math.random() * totalWeight;
@@ -939,12 +964,12 @@ export class CardSystem {
             }
         }
 
-        // Check max stacks
-        const currentStacks = this.acquiredCards[selectedCard.id] || 0;
-        if (currentStacks >= selectedCard.maxStacks && selectedCard.category !== 'CONSUMABLE') {
-            // Reroll if maxed
-            return this.generateCard();
-        }
+        // Check max stacks - Logic moved to filter above, so we are safe here.
+        // const currentStacks = this.acquiredCards[selectedCard.id] || 0;
+        // if (currentStacks >= selectedCard.maxStacks && selectedCard.category !== 'CONSUMABLE') {
+        //    // Reroll if maxed
+        //    return this.generateCard();
+        // }
 
         // Calculate value with rarity multiplier
         const variance = 0.8 + Math.random() * 0.4;

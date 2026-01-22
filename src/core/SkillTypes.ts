@@ -53,7 +53,10 @@ export enum SkillType {
     DASH_SLASH = 'DASH_SLASH',
     FREEZE_AOE = 'FREEZE_AOE',
     STUN_AOE = 'STUN_AOE',
-    MIRROR_IMAGE = 'MIRROR_IMAGE'
+    MIRROR_IMAGE = 'MIRROR_IMAGE',
+    AOE_DELAYED_NUKE = 'AOE_DELAYED_NUKE',
+    SUMMON_MINION = 'SUMMON_MINION',
+    GLOBAL_FREEZE_SHATTER = 'GLOBAL_FREEZE_SHATTER'
 }
 
 export interface SkillDef {
@@ -125,6 +128,13 @@ export interface ActiveEffect {
     color?: string;
     angle?: number;
     speed?: number;
+
+    // Boss Skill Extras
+    maxRadius?: number;
+    spawnTimer?: number;
+    spawnInterval?: number;
+    count?: number;
+    slowPercent?: number;
     dist?: number;
     info?: any;
     healTimer?: number;
@@ -135,6 +145,5 @@ export interface ActiveEffect {
     length?: number;
     explosionRadius?: number;
     freezeDuration?: number;
-    slowPercent?: number;
     pullForce?: number;
 }

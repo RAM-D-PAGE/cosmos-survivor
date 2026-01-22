@@ -470,7 +470,9 @@ export class RenderSystem {
                 this.ctx.fillStyle = '#ffffff';
                 this.ctx.font = 'bold 12px Rajdhani';
                 this.ctx.textAlign = 'center';
-                this.ctx.fillText("BOSS", 0, 20);
+
+                const label = (enemy.type.includes('boss') || enemy.type === 'secret') ? "BOSS" : "ELITE";
+                this.ctx.fillText(label, 0, 20);
 
                 this.ctx.restore();
             }

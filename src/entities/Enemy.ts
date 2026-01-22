@@ -24,6 +24,7 @@ export class Enemy implements ICollidable {
     public poisoned: boolean = false;
     private poisonDamage: number = 0;
     private poisonTimer: number = 0;
+    private poisonTick: number = 0;
     public doomed: boolean = false;
     private doomTimer: number = 0;
     private doomDamage: number = 0;
@@ -57,11 +58,14 @@ export class Enemy implements ICollidable {
     // Elite Modifiers
     public isElite: boolean = false;
     public eliteModifiers: string[] = [];
-    private vampiricHealPercent: number = 0.2;
+    // private vampiricHealPercent: number = 0.2; // Unused for now
     private summonTimer: number = 0;
     private summonInterval: number = 5;
     private regenRate: number = 0;
-    private flashTimer: number = 0;
+    public flashTimer: number = 0;
+
+    public baseSpeed: number = 100;
+    public slowFactor: number = 1;
 
     constructor(game: any, x: number, y: number, type: string = 'chaser') {
         this.game = game;
@@ -78,7 +82,9 @@ export class Enemy implements ICollidable {
 
         this.radius = cfg.RADIUS || 20;
         this.color = cfg.COLOR || '#ff0055';
-        this.speed = (cfg.SPEED || 100) * (1 + scale * 0.1);
+        this.baseSpeed = (cfg.SPEED || 100) * (1 + scale * 0.1);
+        this.speed = this.baseSpeed;
+        this.slowFactor = 1;
         this.health = (cfg.HP || 10) * scale * diffMult;
         this.maxHealth = this.health;
         this.value = cfg.VALUE || 10;
@@ -160,7 +166,7 @@ export class Enemy implements ICollidable {
                     this.speed *= 2;
                     break;
                 case 'VAMPIRIC':
-                    this.vampiricHealPercent = 0.2;
+                    // this.vampiricHealPercent = 0.2;
                     break;
                 case 'EXPLOSIVE':
                     // Explosion handled in die()
@@ -184,15 +190,34 @@ export class Enemy implements ICollidable {
     }
 
     update(dt: number): void {
+        // Reset speed to base * slowFactor each frame
+        this.speed = this.baseSpeed * this.slowFactor;
+        // Decay slow factor back to 1
+        if (this.slowFactor < 1) {
+            this.slowFactor = Math.min(1, this.slowFactor + dt * 0.5); // Recover speed over time
+        }
+
         if (this.frozen) {
             this.frozenTimer -= dt;
             if (this.frozenTimer <= 0) this.frozen = false;
-            return;
+            return; // Don't move if frozen
         }
 
         if (this.poisoned) {
             this.poisonTimer -= dt;
-            this.health -= this.poisonDamage * dt;
+            const dmg = this.poisonDamage * dt;
+            this.health -= dmg;
+
+            // Visual feedback every 0.5s
+            this.poisonTick += dt;
+            if (this.poisonTick >= 0.5) {
+                this.poisonTick = 0;
+                // Show accumulated damage (approx dmg * 0.5s worth? or just the DPS rate?)
+                // Better to show the damage rate or small ticks.
+                // Let's show integer damage
+                this.game.spawnFloatingText(this.x, this.y - 10, Math.ceil(this.poisonDamage * 0.5).toString(), '#00ff00');
+            }
+
             if (this.poisonTimer <= 0) this.poisoned = false;
             if (this.health <= 0) {
                 this.die();
@@ -232,7 +257,7 @@ export class Enemy implements ICollidable {
             }
         }
 
-        this.updateBehavior(dt, player, dx, dy, dist);
+        this.updateBehavior(dt, dx, dy, dist);
     }
 
     summonMinion(): void {
@@ -247,7 +272,7 @@ export class Enemy implements ICollidable {
         this.game.spawnFloatingText(x, y, "SUMMONED!", "#ffaa00");
     }
 
-    updateBehavior(dt: number, player: any, dx: number, dy: number, dist: number): void {
+    updateBehavior(dt: number, dx: number, dy: number, dist: number): void {
         switch (this.type) {
             case 'shooter': this.updateShooter(dt, dx, dy, dist); break;
             case 'duplicator': this.updateDuplicator(dt, dx, dy, dist); break;
