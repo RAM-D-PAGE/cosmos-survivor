@@ -1306,10 +1306,20 @@ export class SkillSystem {
 
                 case 'POISON_CLOUD': {
                     const r = effect.radius || 150;
+                    const grad = ctx.createRadialGradient(effect.x!, effect.y!, r * 0.2, effect.x!, effect.y!, r);
+                    grad.addColorStop(0, 'rgba(0, 255, 50, 0.4)');
+                    grad.addColorStop(1, 'rgba(0, 255, 50, 0)');
+
                     ctx.beginPath();
                     ctx.arc(effect.x!, effect.y!, r, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(0,255,0,0.2)';
+                    ctx.fillStyle = grad;
                     ctx.fill();
+
+                    // Add some "bubbles"
+                    if (Math.random() < 0.3) {
+                        // This is just a visual trick in the draw loop, ideally particles are separate
+                        // But we can draw small circles here for "static" decoration if we wanted
+                    }
                     break;
                 }
 
@@ -1348,6 +1358,80 @@ export class SkillSystem {
                     ctx.lineTo(-5, 5);
                     ctx.lineTo(-5, -5);
                     ctx.fill();
+                    break;
+                }
+
+                case 'PLASMA_LANCE': {
+                    const length = effect.length || 800;
+                    const ex = effect.x || 0;
+                    const ey = effect.y || 0;
+                    const ang = effect.angle || 0;
+                    const col = effect.color || '#00FFFF';
+
+                    const endX = ex + Math.cos(ang) * length;
+                    const endY = ey + Math.sin(ang) * length;
+
+                    ctx.strokeStyle = col;
+                    ctx.lineWidth = 10 + Math.sin(time * 20) * 5;
+                    ctx.lineCap = 'round';
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = col;
+
+                    ctx.beginPath();
+                    ctx.moveTo(ex, ey);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+
+                    // Core brightness
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 4;
+                    ctx.shadowBlur = 0;
+                    ctx.stroke();
+                    break;
+                }
+
+                case 'CHAIN_BOLT': {
+                    if (effect.targetX !== undefined && effect.targetY !== undefined) {
+                        const col = effect.color || '#FFFF00';
+                        ctx.strokeStyle = col;
+                        ctx.lineWidth = 3;
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = col;
+
+                        const ex = effect.x || 0;
+                        const ey = effect.y || 0;
+
+                        const dist = Math.hypot(effect.targetX - ex, effect.targetY - ey);
+                        const steps = Math.floor(dist / 20);
+
+                        ctx.beginPath();
+                        ctx.moveTo(ex, ey);
+
+                        for (let i = 1; i < steps; i++) {
+                            const t = i / steps;
+                            const tx = ex + (effect.targetX - ex) * t;
+                            const ty = ey + (effect.targetY - ey) * t;
+                            // Jitter
+                            const jitter = (Math.random() - 0.5) * 20;
+                            ctx.lineTo(tx + jitter, ty + jitter);
+                        }
+                        ctx.lineTo(effect.targetX, effect.targetY);
+                        ctx.stroke();
+                    }
+                    break;
+                }
+
+                case 'NOVA_BARRIER': {
+                    const r = effect.radius || 80;
+                    const pulse = 1 + Math.sin(time * 5) * 0.1;
+
+                    ctx.beginPath();
+                    ctx.arc(effect.x!, effect.y!, r * pulse, 0, Math.PI * 2);
+                    ctx.fillStyle = (effect.color || '#FFD700') + '33'; // Low opacity hex
+                    ctx.fill();
+                    ctx.strokeStyle = effect.color || '#FFD700';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
                     break;
                 }
             }

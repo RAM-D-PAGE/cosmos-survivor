@@ -498,7 +498,7 @@ export const SKILL_DATA: Record<string, LocalizedSkillDef> = {
     QUICK_HEAL: {
         id: 'QUICK_HEAL',
         name: 'Quick Heal',
-        type: SkillType.SELF_BUFF,
+        type: SkillType.QUICK_HEAL,
         description: 'Instant HP recovery',
         descriptionEN: 'Instantly restore 30% HP',
         descriptionTH: 'ฟื้นฟู HP 30% ทันที',
