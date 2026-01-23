@@ -673,18 +673,16 @@ export class UIManager {
     updateSkillManagePanel(): void {
         const active = this.game.skillSystem ? this.game.skillSystem.activeSkills : [];
         const bag = this.game.skillSystem ? this.game.skillSystem.bagSkills : [];
+        const maxActiveSlots = 9; // Grid 3x3
 
-        // Update Active Slots (Dynamic)
-        // Check for maxSkills (default 3)
-        const maxSlots = this.game.skillSystem ? this.game.skillSystem.maxSkills : 3;
+        // --- Active Slots (Fixed 9) ---
         const slotsContainer = document.getElementById('active-skills-row');
-
         if (slotsContainer) {
             // Check if we need to rebuild (count mismatch)
             const currentSlots = slotsContainer.querySelectorAll('.slot-manage').length;
-            if (currentSlots !== maxSlots) {
+            if (currentSlots !== maxActiveSlots) {
                 slotsContainer.innerHTML = ''; // Rebuild
-                for (let i = 0; i < maxSlots; i++) {
+                for (let i = 0; i < maxActiveSlots; i++) {
                     const div = document.createElement('div');
                     div.className = 'slot-manage';
                     div.dataset.slot = i.toString();
@@ -705,8 +703,8 @@ export class UIManager {
             }
         }
 
-        // Render Slots
-        for (let i = 0; i < maxSlots; i++) {
+        // Render Active Slots
+        for (let i = 0; i < maxActiveSlots; i++) {
             const el = document.getElementById(`slot-${i}-skill`);
             const slotEl = document.querySelector(`.slot-manage[data-slot="${i}"]`) as HTMLElement;
             if (el && slotEl) {
@@ -724,13 +722,16 @@ export class UIManager {
             }
         }
 
-        // Update Bag (100+)
+        // --- Update Bag (Infiniteish) ---
         const bagGrid = document.getElementById('skill-bag-grid');
         if (bagGrid) {
             bagGrid.innerHTML = '';
 
-            // Render Bag Grid (Consistent with Active Slots)
-            for (let i = 0; i < maxSlots; i++) {
+            // Show at least bag content + some empty rows to look "open"
+            // Ensure visual minimum of say 20 slots
+            const bagDisplayCount = Math.max(bag.length + 5, 20);
+
+            for (let i = 0; i < bagDisplayCount; i++) {
                 const skill = bag[i];
                 const slotId = 100 + i;
 
@@ -740,14 +741,9 @@ export class UIManager {
 
                 if (skill) {
                     div.draggable = true;
-                    div.style.cssText = `
-                        width: 60px; height: 60px; border: 1px solid ${skill.color};
-                        border-radius: 5px; display: flex; align-items: center; justify-content: center;
-                        background: rgba(0,0,0,0.5); cursor: grab; font-size: 24px;
-                        position: relative;
-                    `;
+                    div.style.borderColor = skill.color;
                     div.title = skill.name;
-                    div.innerText = this.getSkillIcon(skill.id || skill.name);
+                    div.innerHTML = this.getSkillIcon(skill.id || skill.name);
 
                     // Level badge
                     if (skill.count && skill.count > 1) {
@@ -760,15 +756,13 @@ export class UIManager {
                         `;
                         div.appendChild(badger);
                     }
-
                 } else {
                     div.draggable = false;
-                    div.style.cssText = `
-                        width: 60px; height: 60px; border: 1px dashed #333;
-                        border-radius: 5px; display: flex; align-items: center; justify-content: center;
-                        color: #333; font-size: 10px; background: rgba(0,0,0,0.2);
-                    `;
-                    div.innerText = `Slot ${i + 1}`;
+                    div.style.borderStyle = 'dashed';
+                    div.style.borderColor = '#333';
+                    div.style.color = '#333';
+                    div.style.fontSize = '10px';
+                    div.innerText = (i + 1).toString();
                 }
                 bagGrid.appendChild(div);
             }

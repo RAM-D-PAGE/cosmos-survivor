@@ -154,7 +154,7 @@ export class SkillSystem {
     }
 
     get bagCapacity(): number {
-        return this.maxSkills;
+        return 999;
     }
 
     equipSkill(skillId: string): boolean {
