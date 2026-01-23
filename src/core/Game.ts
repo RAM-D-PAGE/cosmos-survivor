@@ -698,7 +698,10 @@ export class Game {
                         this.gameplayEnhancer.checkAchievements();
                     }
                     if (this.player.healthOnKill) {
-                        this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.healthOnKill);
+                        const heal = Number.isFinite(this.player.healthOnKill) ? this.player.healthOnKill : 0;
+                        if (heal > 0) {
+                            this.player.hp = Math.min(this.player.maxHp, this.player.hp + heal);
+                        }
                     }
                 }
                 break;
@@ -724,8 +727,14 @@ export class Game {
             if (distSq < minDistSq) {
                 if (!this.player.isInvulnerable) {
                     const collisionDmg = 10;
+
+                    // NaN Recovery for Player
+                    if (!Number.isFinite(this.player.hp)) {
+                        this.player.hp = this.player.maxHp;
+                    }
+
                     this.player.hp = Math.max(0, this.player.hp - collisionDmg);
-                    this.ui.update(0);
+                    this.ui.update(0.016); // Ensure UI update has dt
                     this.spawnFloatingText(playerX, playerY, `-${collisionDmg}`, '#ff0000');
                     this.addScreenShake(0.3, 5);
 

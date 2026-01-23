@@ -531,10 +531,12 @@ export class Enemy implements ICollidable {
         this.game.audio.playExplosion();
 
         // Health on Kill
-        if (this.game.player.healthOnKill > 0) {
-            const heal = this.game.player.healthOnKill;
-            this.game.player.hp = Math.min(this.game.player.maxHp, this.game.player.hp + heal);
-            this.game.spawnFloatingText(this.game.player.x, this.game.player.y, `+${heal}`, '#00ff88');
+        if (this.game.player.healthOnKill) {
+            const heal = Number.isFinite(this.game.player.healthOnKill) ? this.game.player.healthOnKill : 0;
+            if (heal > 0) {
+                this.game.player.hp = Math.min(this.game.player.maxHp, this.game.player.hp + heal);
+                this.game.spawnFloatingText(this.game.player.x, this.game.player.y, `+${heal}`, '#00ff88');
+            }
         }
 
         // Bomber or Explosive Elite explodes
