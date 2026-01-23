@@ -1164,9 +1164,15 @@ canvas {
     background: rgba(0, 0, 0, 0.5);
     border: 2px solid #555;
     border-radius: var(--border-radius-sm);
-    cursor: pointer;
+    cursor: grab;
     transition: all var(--transition-fast);
     pointer-events: auto;
+    user-select: none;
+    -webkit-user-drag: element;
+}
+
+.slot-manage:active {
+    cursor: grabbing;
 }
 
 .slot-manage:hover {
@@ -1181,9 +1187,32 @@ canvas {
     box-shadow: 0 0 20px var(--secondary-color);
 }
 
+.slot-manage.drag-over {
+    border-color: var(--accent-color);
+    background: rgba(0, 255, 136, 0.3);
+    box-shadow: 0 0 15px var(--accent-color);
+}
+
+.slot-manage.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+/* Make all text inside slots non-interactive for drag */
+.slot-manage * {
+    pointer-events: none;
+    user-select: none;
+}
+
 .slot-manage span:first-child {
     font-weight: 700;
     color: #888;
+}
+
+.slot-label {
+    font-size: 12px;
+    color: var(--primary-color);
+    font-weight: 600;
 }
 
 /* ============= GAME OVER ============= */

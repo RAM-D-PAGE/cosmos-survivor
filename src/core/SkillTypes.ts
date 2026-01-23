@@ -56,7 +56,14 @@ export enum SkillType {
     MIRROR_IMAGE = 'MIRROR_IMAGE',
     AOE_DELAYED_NUKE = 'AOE_DELAYED_NUKE',
     SUMMON_MINION = 'SUMMON_MINION',
-    GLOBAL_FREEZE_SHATTER = 'GLOBAL_FREEZE_SHATTER'
+    GLOBAL_FREEZE_SHATTER = 'GLOBAL_FREEZE_SHATTER',
+
+    // New Skill Types
+    LASER_BEAM = 'LASER_BEAM',
+    ORBITAL_STRIKE = 'ORBITAL_STRIKE',
+    LIFE_DRAIN = 'LIFE_DRAIN',
+    CHAIN_LIGHTNING = 'CHAIN_LIGHTNING',
+    BARRIER_BURST = 'BARRIER_BURST'
 }
 
 export interface SkillDef {
@@ -146,4 +153,9 @@ export interface ActiveEffect {
     explosionRadius?: number;
     freezeDuration?: number;
     pullForce?: number;
+
+    // New Skill Properties
+    storedDamage?: number;
+    targetX?: number;
+    targetY?: number;
 }

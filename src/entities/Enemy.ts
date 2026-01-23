@@ -205,8 +205,14 @@ export class Enemy implements ICollidable {
 
         if (this.poisoned) {
             this.poisonTimer -= dt;
-            const dmg = this.poisonDamage * dt;
-            this.health -= dmg;
+            let dmg = this.poisonDamage * dt;
+
+            // Guard against NaN/Infinity (Bug Fix: Invincibility after Poison Cloud)
+            if (!Number.isFinite(dmg)) dmg = 0;
+
+            if (dmg > 0) {
+                this.health -= dmg;
+            }
 
             // Visual feedback every 0.5s
             this.poisonTick += dt;
@@ -258,6 +264,12 @@ export class Enemy implements ICollidable {
         }
 
         this.updateBehavior(dt, dx, dy, dist);
+
+        // Emergency NaN recovery (Bug Fix: Invincibility after Poison Cloud)
+        if (!Number.isFinite(this.health)) {
+            console.warn('[Enemy] Health became NaN, resetting to 1');
+            this.health = 1;
+        }
     }
 
     summonMinion(): void {
@@ -463,6 +475,11 @@ export class Enemy implements ICollidable {
     }
 
     takeDamage(amount: number, damageType: string = 'physical'): void {
+        // Guard against NaN/Infinity damage (Bug Fix: Invincibility after Poison Cloud)
+        if (!Number.isFinite(amount) || amount <= 0) {
+            return;
+        }
+
         if (this.type === 'ghost' && this.isPhased && Math.random() < this.evasionChance) {
             this.game.spawnFloatingText(this.x, this.y - 20, "MISS", '#ffffff88');
             return;
@@ -563,6 +580,10 @@ export class Enemy implements ICollidable {
     }
 
     poison(damagePerSec: number, duration: number): void {
+        // Validate inputs to prevent NaN propagation (Bug Fix: Invincibility after Poison Cloud)
+        if (!Number.isFinite(damagePerSec) || damagePerSec <= 0) return;
+        if (!Number.isFinite(duration) || duration <= 0) return;
+
         this.poisoned = true;
         this.poisonDamage = damagePerSec;
         this.poisonTimer = duration;

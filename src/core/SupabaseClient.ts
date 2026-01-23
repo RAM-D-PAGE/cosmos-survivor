@@ -11,7 +11,7 @@ export const getSupabase = (): SupabaseClient | null => {
         const url = CONFIG.SUPABASE.URL;
         const key = CONFIG.SUPABASE.KEY;
         if (!url || !key) {
-            console.error("[SHARED] Supabase URL or KEY is missing in Config!");
+            console.warn("[SHARED] Supabase URL or KEY is missing. Initializing in Offline Mode.");
             return null;
         }
         supabaseInstance = createClient(url, key);

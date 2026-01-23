@@ -514,6 +514,12 @@ export class UIManager {
             'BEAM_ERASURE': '🔦',
             'CLOUD_PIERCING': '🌫️',
             'DASH_SLASH': '💨',
+            // New Skills
+            'PLASMA_LANCE': '⚡',
+            'ORBITAL_BOMBARDMENT': '🛸',
+            'VAMPIRE_TOUCH': '🩸',
+            'STORM_CHAIN': '⛈️',
+            'NOVA_BARRIER': '🔰',
         };
         return icons[skillId] || '✨';
     }
@@ -682,6 +688,7 @@ export class UIManager {
                     const div = document.createElement('div');
                     div.className = 'slot-manage';
                     div.dataset.slot = i.toString();
+                    div.draggable = true; // Enable drag
 
                     const innerDiv = document.createElement('div');
                     innerDiv.id = `slot-${i}-skill`;
@@ -721,45 +728,50 @@ export class UIManager {
         const bagGrid = document.getElementById('skill-bag-grid');
         if (bagGrid) {
             bagGrid.innerHTML = '';
-            // Render existing bag items + 1 empty slot for convenience? Or just render items.
-            // If bag is empty, render placeholder.
-            if (bag.length === 0) {
-                bagGrid.innerHTML = '<span style="color:#666; width:100%; text-align:center;">Empty Bag</span>';
-            }
 
-            bag.forEach((skill: any, index: number) => {
-                if (!skill) return; // Skip holes/undefined
-                const slotId = 100 + index;
+            // Render Bag Grid (Consistent with Active Slots)
+            for (let i = 0; i < maxSlots; i++) {
+                const skill = bag[i];
+                const slotId = 100 + i;
+
                 const div = document.createElement('div');
                 div.className = 'bag-slot';
                 div.dataset.slot = slotId.toString();
-                div.draggable = true;
-                div.style.cssText = `
-                    width: 60px; height: 60px; border: 1px solid ${skill.color};
-                    border-radius: 5px; display: flex; align-items: center; justify-content: center;
-                    background: rgba(0,0,0,0.5); cursor: grab; font-size: 24px;
-                `;
-                div.innerText = this.getSkillIcon(skill.id || skill.name);
-                div.title = skill.name;
-                bagGrid.appendChild(div);
-            });
 
-            // Should we add an empty slot to drag TO if we want to unequip?
-            // "Drag from active to bag" appends to bag.
-            // But swap requires index.
-            // If I drag Active -> Bag, I swap with NEW bag item? No.
-            // Let's add an explicit "New Slot" at the end of bag to allow unequip.
-            const emptySlotId = 100 + bag.length;
-            const emptyDiv = document.createElement('div');
-            emptyDiv.className = 'bag-slot';
-            emptyDiv.dataset.slot = emptySlotId.toString();
-            emptyDiv.style.cssText = `
-                width: 60px; height: 60px; border: 1px dashed #444;
-                border-radius: 5px; display: flex; align-items: center; justify-content: center;
-                color: #444;
-            `;
-            emptyDiv.innerText = '+';
-            bagGrid.appendChild(emptyDiv);
+                if (skill) {
+                    div.draggable = true;
+                    div.style.cssText = `
+                        width: 60px; height: 60px; border: 1px solid ${skill.color};
+                        border-radius: 5px; display: flex; align-items: center; justify-content: center;
+                        background: rgba(0,0,0,0.5); cursor: grab; font-size: 24px;
+                        position: relative;
+                    `;
+                    div.title = skill.name;
+                    div.innerText = this.getSkillIcon(skill.id || skill.name);
+
+                    // Level badge
+                    if (skill.count && skill.count > 1) {
+                        const badger = document.createElement('div');
+                        badger.innerText = skill.count;
+                        badger.style.cssText = `
+                            position: absolute; bottom: 2px; right: 2px;
+                            font-size: 10px; color: #fff; background: #000;
+                            padding: 1px 3px; border-radius: 3px;
+                        `;
+                        div.appendChild(badger);
+                    }
+
+                } else {
+                    div.draggable = false;
+                    div.style.cssText = `
+                        width: 60px; height: 60px; border: 1px dashed #333;
+                        border-radius: 5px; display: flex; align-items: center; justify-content: center;
+                        color: #333; font-size: 10px; background: rgba(0,0,0,0.2);
+                    `;
+                    div.innerText = `Slot ${i + 1}`;
+                }
+                bagGrid.appendChild(div);
+            }
         }
     }
 

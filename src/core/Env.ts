@@ -40,5 +40,5 @@ if (ENV_CONFIG.ENVIRONMENT === 'production' && GAME_CONFIG.DEBUG) {
 }
 
 if (!ENV_CONFIG.SUPABASE_URL && ENV_CONFIG.ENVIRONMENT !== 'development') {
-  console.error('Supabase URL is required in non-development environments');
+  console.warn('Supabase URL is missing in non-development environment. Online features will be disabled.');
 }

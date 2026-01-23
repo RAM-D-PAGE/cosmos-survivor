@@ -1059,6 +1059,11 @@ export class Game {
     }
 
     spawnFloatingText(x: number, y: number, text: string, color: string): void {
+        // Global NaN Guard for UI
+        if (text === 'NaN' || text.includes('NaN')) {
+            // console.warn('[Game] Attempted to spawn NaN floating text');
+            return;
+        }
         this.floatingTexts.push(new FloatingText(x, y, text, color));
     }
 

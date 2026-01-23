@@ -1,6 +1,7 @@
 
 import { SKILL_DATA } from '../data/SkillData';
 import { ActiveEffect, SkillType } from '../core/SkillTypes';
+import { safeDamage, safeRadius, safeDuration, safeNum, safePercent, canApplyDamage, safeHP, canApplyHeal } from '../utils/NaNGuard';
 
 export class SkillSystem {
     private readonly game: any;
@@ -64,6 +65,12 @@ export class SkillSystem {
             [SkillType.AOE_DELAYED_NUKE]: this.executeSupernova.bind(this),
             [SkillType.SUMMON_MINION]: this.executeVoidGate.bind(this),
             [SkillType.GLOBAL_FREEZE_SHATTER]: this.executeAbsoluteZero.bind(this),
+            // New Skill Executors
+            [SkillType.LASER_BEAM]: this.executePlasmaLance.bind(this),
+            [SkillType.ORBITAL_STRIKE]: this.executeOrbitalBombardment.bind(this),
+            [SkillType.LIFE_DRAIN]: this.executeVampireTouch.bind(this),
+            [SkillType.CHAIN_LIGHTNING]: this.executeChainLightning.bind(this),
+            [SkillType.BARRIER_BURST]: this.executeNovaBarrier.bind(this),
         };
     }
 
@@ -146,6 +153,10 @@ export class SkillSystem {
         return Math.max(1, Math.round(baseDamage * (playerDamage / 10)));
     }
 
+    get bagCapacity(): number {
+        return this.maxSkills;
+    }
+
     equipSkill(skillId: string): boolean {
         const def = this.skillDefinitions[skillId];
         if (!def) return false;
@@ -180,8 +191,14 @@ export class SkillSystem {
             this.activeSkills.push(skill);
             this.game.spawnFloatingText(this.game.player.x, this.game.player.y, `${def.name} Acquired!`, def.color);
         } else {
-            this.bagSkills.push(skill);
-            this.game.spawnFloatingText(this.game.player.x, this.game.player.y, `${def.name} -> Bag`, def.color);
+            // Check Bag Limit
+            if (this.bagSkills.length < this.bagCapacity) {
+                this.bagSkills.push(skill);
+                this.game.spawnFloatingText(this.game.player.x, this.game.player.y, `${def.name} -> Bag`, def.color);
+            } else {
+                this.game.spawnFloatingText(this.game.player.x, this.game.player.y, "BAG FULL!", "#ff0000");
+                return false;
+            }
         }
 
         if (def.isMystical && !this.mysticalSkills.includes(skillId)) {
@@ -250,24 +267,32 @@ export class SkillSystem {
 
     executeBlackHole(game: any, skill: any): void {
         const center = this.getTargetPosition(game);
+        // NaN guard: validate skill parameters using utilities
+        const radius = safeRadius(skill.radius, 150);
+        const damage = safeDamage(skill.damage, 50);
+        const duration = safeDuration(skill.duration, 3);
+
         this.activeEffects.push({
             type: 'BLACK_HOLE',
             x: center.x,
             y: center.y,
-            radius: skill.radius,
-            damage: skill.damage,
-            timer: skill.duration,
+            radius: radius,
+            damage: damage,
+            timer: duration,
             update: (dt, g) => {
                 g.enemies.forEach((e: any) => {
                     if (e.markedForDeletion) return;
                     const dx = center.x - e.x;
                     const dy = center.y - e.y;
                     const dist = Math.hypot(dx, dy);
-                    if (dist < skill.radius && dist > 0) {
+                    if (dist < radius && dist > 0) {
                         const force = 200 * dt;
                         e.x += (dx / dist) * force;
                         e.y += (dy / dist) * force;
-                        e.takeDamage(skill.damage * dt, 'void');
+                        const tickDamage = damage * dt;
+                        if (canApplyDamage(tickDamage)) {
+                            e.takeDamage(tickDamage, 'void');
+                        }
                     }
                 });
             }
@@ -276,17 +301,24 @@ export class SkillSystem {
 
     executeMeteorShower(game: any, skill: any): void {
         const center = this.getTargetPosition(game);
-        for (let i = 0; i < skill.count; i++) {
+        // NaN guard: validate skill parameters using utilities
+        const count = safeNum(skill.count, 5);
+        const radius = safeRadius(skill.radius, 80);
+        const damage = safeDamage(skill.damage, 100);
+
+        for (let i = 0; i < count; i++) {
             setTimeout(() => {
                 const angle = Math.random() * Math.PI * 2;
                 const dist = Math.random() * 200;
                 const x = center.x + Math.cos(angle) * dist;
                 const y = center.y + Math.sin(angle) * dist;
-                game.spawnParticles(x, y, 15, skill.color);
+                game.spawnParticles(x, y, 15, skill.color || '#ff6600');
                 game.enemies.forEach((e: any) => {
                     if (e.markedForDeletion) return;
-                    if (Math.hypot(e.x - x, e.y - y) < skill.radius) {
-                        e.takeDamage(skill.damage, 'fire');
+                    if (Math.hypot(e.x - x, e.y - y) < radius) {
+                        if (canApplyDamage(damage)) {
+                            e.takeDamage(damage, 'fire');
+                        }
                     }
                 });
             }, i * 200);
@@ -302,12 +334,13 @@ export class SkillSystem {
 
     executeDoom(game: any, skill: any): void {
         const target = this.getTargetPosition(game);
-        const radius = skill.radius || 180;
-        const pullForce = skill.pullForce || 300;
-        const duration = skill.delay || 3;
-        const damage = skill.damage || 200;
+        // NaN guard: validate and provide fallbacks using utilities
+        const radius = safeRadius(skill.radius, 180);
+        const pullForce = safeNum(skill.pullForce, 300);
+        const duration = safeDuration(skill.delay, 3);
+        const damage = safeDamage(skill.damage, 200);
 
-        game.spawnFloatingText(target.x, target.y, "DOOM VORTEX!", skill.color);
+        game.spawnFloatingText(target.x, target.y, "DOOM VORTEX!", skill.color || '#ff0044');
 
         this.activeEffects.push({
             type: 'doom_vortex',
@@ -315,7 +348,7 @@ export class SkillSystem {
             x: target.x,
             y: target.y,
             radius: radius,
-            color: skill.color,
+            color: skill.color || '#ff0044',
             update: (dt: number, g: any) => {
                 g.enemies.forEach((e: any) => {
                     if (e.markedForDeletion) return;
@@ -324,8 +357,10 @@ export class SkillSystem {
                     const dist = Math.hypot(dx, dy);
                     if (dist < radius && dist > 10) {
                         const pullStrength = (1 - dist / radius) * pullForce * dt;
-                        e.x += (dx / dist) * pullStrength;
-                        e.y += (dy / dist) * pullStrength;
+                        if (Number.isFinite(pullStrength)) {
+                            e.x += (dx / dist) * pullStrength;
+                            e.y += (dy / dist) * pullStrength;
+                        }
                     }
                 });
             }
@@ -338,18 +373,23 @@ export class SkillSystem {
                 const dy = e.y - target.y;
                 const dist = Math.hypot(dx, dy);
                 if (dist < radius * 1.2) {
-                    e.takeDamage(damage, 'doom');
+                    if (canApplyDamage(damage)) {
+                        e.takeDamage(damage, 'doom');
+                    }
                 }
             });
             game.spawnFloatingText(target.x, target.y, `BOOM! -${damage}`, '#ff0044');
             game.addScreenShake(0.3, 8);
-            game.spawnParticles(target.x, target.y, 30, skill.color);
+            game.spawnParticles(target.x, target.y, 30, skill.color || '#ff0044');
         }, duration * 1000);
     }
 
     executeLightningStorm(game: any, skill: any): void {
         const center = this.getTargetPosition(game);
-        const strikes = skill.strikes || 5;
+        // NaN guard: validate skill parameters using utilities
+        const strikes = safeNum(skill.strikes, 5);
+        const radius = safeRadius(skill.radius, 150);
+        const damage = safeDamage(skill.damage, 60);
         const isSlash = skill.renderStyle === 'slash';
 
         for (let i = 0; i < strikes; i++) {
@@ -359,7 +399,7 @@ export class SkillSystem {
                 if (isSlash) {
                     const nearby = game.enemies.filter((e: any) => {
                         const d = Math.hypot(e.x - center.x, e.y - center.y);
-                        return !e.markedForDeletion && d < skill.radius;
+                        return !e.markedForDeletion && d < radius;
                     });
 
                     if (nearby.length > 0) {
@@ -369,23 +409,23 @@ export class SkillSystem {
                     } else {
                         // random fallback
                         const angle = Math.random() * Math.PI * 2;
-                        const dist = Math.random() * skill.radius;
+                        const dist = Math.random() * radius;
                         x = center.x + Math.cos(angle) * dist;
                         y = center.y + Math.sin(angle) * dist;
                     }
                 } else {
                     // Classic lightning behavior (random)
                     const angle = Math.random() * Math.PI * 2;
-                    const dist = Math.random() * skill.radius;
+                    const dist = Math.random() * radius;
                     x = center.x + Math.cos(angle) * dist;
                     y = center.y + Math.sin(angle) * dist;
                 }
 
                 if (isSlash) {
-                    game.spawnParticles(x, y, 5, skill.color);
+                    game.spawnParticles(x, y, 5, skill.color || '#ffee00');
                     game.audio?.playSlash?.();
                 } else {
-                    game.spawnParticles(x, y, 5, skill.color);
+                    game.spawnParticles(x, y, 5, skill.color || '#ffee00');
                 }
 
                 game.enemies.forEach((e: any) => {
@@ -395,7 +435,9 @@ export class SkillSystem {
                     const d = Math.hypot(dx, dy);
                     // Increased hit radius for slash (was 50) to ensure it feels generous
                     const hitRadius = isSlash ? 80 : 50;
-                    if (d < hitRadius) e.takeDamage(skill.damage, isSlash ? 'slash' : 'lightning');
+                    if (d < hitRadius && canApplyDamage(damage)) {
+                        e.takeDamage(damage, isSlash ? 'slash' : 'lightning');
+                    }
                 });
             }, i * 100);
         }
@@ -436,21 +478,27 @@ export class SkillSystem {
     executeSoulHarvest(game: any, skill: any): void {
         const center = this.getTargetPosition(game);
         let kills = 0;
-        game.spawnParticles(center.x, center.y, 20, skill.color);
+        // NaN guard: validate skill parameters using utilities
+        const radius = safeRadius(skill.radius, 200);
+        const threshold = safeNum(skill.threshold, 0.2);
+
+        game.spawnParticles(center.x, center.y, 20, skill.color || '#8b00ff');
         game.enemies.forEach((e: any) => {
             if (e.markedForDeletion) return;
             const dx = e.x - center.x;
             const dy = e.y - center.y;
             const dist = Math.hypot(dx, dy);
-            if (dist < skill.radius) {
-                const hpPercent = e.health / e.maxHealth;
-                if (hpPercent <= skill.threshold) {
-                    e.takeDamage(e.health + 1, 'soul');
+            if (dist < radius) {
+                const hpPercent = Number.isFinite(e.health) && Number.isFinite(e.maxHealth) && e.maxHealth > 0
+                    ? e.health / e.maxHealth : 1;
+                if (hpPercent <= threshold) {
+                    const killDamage = Number.isFinite(e.health) ? e.health + 1 : 1;
+                    e.takeDamage(killDamage, 'soul');
                     kills++;
                 }
             }
         });
-        game.spawnFloatingText(game.player.x, game.player.y, `HARVESTED ${kills}!`, skill.color);
+        game.spawnFloatingText(game.player.x, game.player.y, `HARVESTED ${kills}!`, skill.color || '#8b00ff');
     }
 
     executeFireball(game: any, skill: any): void {
@@ -494,13 +542,19 @@ export class SkillSystem {
     }
 
     explodeFireball(game: any, effect: any): void {
-        game.spawnParticles(effect.x, effect.y, 20, effect.color);
+        game.spawnParticles(effect.x, effect.y, 20, effect.color || '#ff6600');
         game.enemies.forEach((e: any) => {
             if (e.markedForDeletion) return;
             const dx = e.x - effect.x;
             const dy = e.y - effect.y;
             const dist = Math.hypot(dx, dy);
-            if (dist < effect.explosionRadius) e.takeDamage(effect.damage, 'fire');
+            const explosionRadius = safeRadius(effect.explosionRadius, 80);
+            const damage = safeDamage(effect.damage, 50);
+            if (dist < explosionRadius) {
+                if (canApplyDamage(damage)) {
+                    e.takeDamage(damage, 'fire');
+                }
+            }
         });
     }
 
@@ -562,14 +616,19 @@ export class SkillSystem {
     executePoisonCloud(game: any, skill: any): void {
         const center = this.getTargetPosition(game);
 
+        // Validate skill values with fallbacks using utilities
+        const damagePerSec = safeDamage(skill.damagePerSec, 15);
+        const duration = safeDuration(skill.duration, 5);
+        const radius = safeRadius(skill.radius, 180);
+
         const effect: any = {
             type: 'POISON_CLOUD',
             x: center.x,
             y: center.y,
-            radius: skill.radius,
-            damagePerSec: skill.damagePerSec,
-            timer: skill.duration,
-            color: skill.color
+            radius: radius,
+            damagePerSec: damagePerSec,
+            timer: duration,
+            color: skill.color || '#00ff00'
         };
 
         effect.update = (_dt: number, g: any) => {
@@ -590,16 +649,25 @@ export class SkillSystem {
 
     executeShockwave(game: any, skill: any): void {
         const player = game.player;
-        game.spawnParticles(player.x, player.y, 20, skill.color);
+        // NaN guard: validate skill parameters using utilities
+        const radius = safeRadius(skill.radius, 120);
+        const damage = safeDamage(skill.damage, 80);
+        const knockback = safeNum(skill.knockback, 100);
+
+        game.spawnParticles(player.x, player.y, 20, skill.color || '#ffcc00');
         game.enemies.forEach((e: any) => {
             if (e.markedForDeletion) return;
             const dx = e.x - player.x;
             const dy = e.y - player.y;
             const dist = Math.hypot(dx, dy);
-            if (dist < skill.radius && dist > 0) {
-                e.takeDamage(skill.damage, 'physical');
-                e.x += (dx / dist) * skill.knockback;
-                e.y += (dy / dist) * skill.knockback;
+            if (dist < radius && dist > 0) {
+                if (canApplyDamage(damage)) {
+                    e.takeDamage(damage, 'physical');
+                }
+                if (Number.isFinite(knockback)) {
+                    e.x += (dx / dist) * knockback;
+                    e.y += (dy / dist) * knockback;
+                }
             }
         });
     }
@@ -999,9 +1067,13 @@ export class SkillSystem {
     }
 
     executeHealAura(_game: any, skill: any): void {
+        // Validate skill values using utilities
+        const duration = safeDuration(skill.duration, 8);
+        const healPercent = safePercent(skill.healPercent, 0.05);
+
         this.activeEffects.push({
             type: 'HEAL_AURA',
-            timer: skill.duration,
+            timer: duration,
             healTimer: 0,
             update: (dt: number, g: any) => {
                 const self: any = this.activeEffects.find(e => e.type === 'HEAL_AURA');
@@ -1009,8 +1081,11 @@ export class SkillSystem {
 
                 self.healTimer += dt;
                 if (self.healTimer >= 1) {
-                    g.player.hp = Math.min(g.player.maxHp, g.player.hp + (g.player.maxHp * skill.healPercent));
-                    g.spawnFloatingText(g.player.x, g.player.y, "+HP", "#00ff00");
+                    const healAmount = g.player.maxHp * healPercent;
+                    if (canApplyHeal(healAmount)) {
+                        g.player.hp = Math.min(g.player.maxHp, g.player.hp + healAmount);
+                        g.spawnFloatingText(g.player.x, g.player.y, "+HP", "#00ff00");
+                    }
                     self.healTimer = 0;
                 }
             }
@@ -1104,8 +1179,15 @@ export class SkillSystem {
     }
 
     executeQuickHeal(game: any, skill: any): void {
-        const healAmount = game.player.maxHp * (skill.healPercent || 0.3);
-        game.player.hp = Math.min(game.player.maxHp, game.player.hp + healAmount);
+        // Validate skill values using utilities
+        const healPercent = safePercent(skill.healPercent, 0.3);
+        const maxHp = safeHP(game.player.maxHp, 100);
+        const currentHp = safeHP(game.player.hp, 0);
+
+        let healAmount = maxHp * healPercent;
+        healAmount = safeHP(healAmount, 30); // Fallback
+
+        game.player.hp = Math.min(maxHp, currentHp + healAmount);
         game.spawnFloatingText(game.player.x, game.player.y, `+${Math.round(healAmount)} HP`, '#00ff88');
         game.spawnParticles(game.player.x, game.player.y, 20, '#00ff88');
     }
@@ -1270,6 +1352,251 @@ export class SkillSystem {
                 }
             }
             ctx.restore();
+        });
+    }
+
+    // ============= NEW SKILL EXECUTORS =============
+
+    executePlasmaLance(game: any, skill: any): void {
+        const player = game.player;
+        const mouse = game.input.getMousePosition();
+        const camX = game.camera ? game.camera.x : 0;
+        const camY = game.camera ? game.camera.y : 0;
+        const targetX = mouse.x + camX;
+        const targetY = mouse.y + camY;
+        const angle = Math.atan2(targetY - player.y, targetX - player.x);
+
+        const range = skill.range || 800;
+        const damage = skill.damage || 80;
+
+        // Create beam effect
+        this.activeEffects.push({
+            type: 'PLASMA_LANCE',
+            x: player.x,
+            y: player.y,
+            angle: angle,
+            timer: skill.duration || 0.3,
+            color: skill.color,
+            length: range,
+            update: (_dt: number, g: any) => {
+                // Hit all enemies in line
+                g.enemies.forEach((e: any) => {
+                    if (e.markedForDeletion) return;
+                    // Line-circle collision
+                    const endX = player.x + Math.cos(angle) * range;
+                    const endY = player.y + Math.sin(angle) * range;
+                    const distToLine = this.pointToLineDistance(e.x, e.y, player.x, player.y, endX, endY);
+                    if (distToLine < e.radius + 20) {
+                        e.takeDamage(damage, 'plasma');
+                    }
+                });
+            }
+        } as any);
+
+        game.addScreenShake(0.2, 5);
+        game.spawnFloatingText(player.x, player.y, "PLASMA LANCE!", skill.color);
+    }
+
+    pointToLineDistance(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+        const A = px - x1;
+        const B = py - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let t = Math.max(0, Math.min(1, dot / lenSq));
+        const closestX = x1 + t * C;
+        const closestY = y1 + t * D;
+        return Math.hypot(px - closestX, py - closestY);
+    }
+
+    executeOrbitalBombardment(game: any, skill: any): void {
+        const center = this.getTargetPosition(game);
+        const count = skill.count || 5;
+        const damage = skill.damage || 120;
+        const radius = skill.radius || 100;
+
+        game.spawnFloatingText(center.x, center.y, "ORBITAL STRIKE!", skill.color);
+
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const offsetX = (Math.random() - 0.5) * 200;
+                const offsetY = (Math.random() - 0.5) * 200;
+                const x = center.x + offsetX;
+                const y = center.y + offsetY;
+
+                // Warning indicator
+                game.spawnParticles(x, y, 5, '#ff0000');
+
+                // Delayed strike
+                setTimeout(() => {
+                    game.addScreenShake(0.3, 8);
+                    game.spawnParticles(x, y, 30, skill.color);
+
+                    game.enemies.forEach((e: any) => {
+                        if (e.markedForDeletion) return;
+                        const dist = Math.hypot(e.x - x, e.y - y);
+                        if (dist < radius) {
+                            e.takeDamage(damage, 'orbital');
+                        }
+                    });
+                }, 500);
+            }, i * (skill.delay || 0.5) * 1000);
+        }
+    }
+
+    executeVampireTouch(game: any, skill: any): void {
+        const player = game.player;
+        const radius = skill.radius || 200;
+        const damage = skill.damage || 40;
+        const healPercent = skill.healPercent || 1.0;
+
+        let totalDamage = 0;
+
+        game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dist = Math.hypot(e.x - player.x, e.y - player.y);
+            if (dist < radius) {
+                const actualDamage = Math.min(e.health, damage);
+                e.takeDamage(damage, 'drain');
+                totalDamage += actualDamage;
+                game.spawnParticles(e.x, e.y, 3, skill.color);
+            }
+        });
+
+        // Heal player based on damage dealt
+        const healAmount = totalDamage * healPercent;
+        if (healAmount > 0 && Number.isFinite(healAmount)) {
+            player.hp = Math.min(player.maxHp, player.hp + healAmount);
+            game.spawnFloatingText(player.x, player.y, `+${Math.round(healAmount)} HP`, '#00ff00');
+        }
+
+        game.spawnFloatingText(player.x, player.y - 30, "LIFE DRAIN!", skill.color);
+        game.spawnParticles(player.x, player.y, 20, skill.color);
+    }
+
+    executeChainLightning(game: any, skill: any): void {
+        const player = game.player;
+        const damage = skill.damage || 30;
+        const chainRange = skill.chainRange || 200;
+        const maxChains = skill.maxChains || 8;
+
+        // Find initial target (closest enemy)
+        let target = null;
+        let minDist = Infinity;
+
+        game.enemies.forEach((e: any) => {
+            if (e.markedForDeletion) return;
+            const dist = Math.hypot(e.x - player.x, e.y - player.y);
+            if (dist < 500 && dist < minDist) {
+                minDist = dist;
+                target = e;
+            }
+        });
+
+        if (!target) {
+            game.spawnFloatingText(player.x, player.y, "NO TARGET", '#ff0000');
+            return;
+        }
+
+        const hitEnemies: any[] = [];
+        let currentTarget: any = target;
+        hitEnemies.push(currentTarget);
+
+        // Chain to nearby enemies
+        for (let i = 0; i < maxChains && currentTarget; i++) {
+            currentTarget.takeDamage(damage * (1 - i * 0.05), 'lightning'); // Slight damage falloff
+            game.spawnParticles(currentTarget.x, currentTarget.y, 5, skill.color);
+
+            // Find next target
+            let nextTarget: any = null;
+            let nextDist = Infinity;
+
+            game.enemies.forEach((e: any) => {
+                if (e.markedForDeletion || hitEnemies.includes(e)) return;
+                const dist = Math.hypot(e.x - currentTarget.x, e.y - currentTarget.y);
+                if (dist < chainRange && dist < nextDist) {
+                    nextDist = dist;
+                    nextTarget = e;
+                }
+            });
+
+            if (nextTarget) {
+                hitEnemies.push(nextTarget);
+                // Visual chain effect
+                this.activeEffects.push({
+                    type: 'CHAIN_BOLT',
+                    x: currentTarget.x,
+                    y: currentTarget.y,
+                    timer: 0.2,
+                    color: skill.color,
+                    targetX: nextTarget.x,
+                    targetY: nextTarget.y,
+                    update: () => { }
+                } as any);
+            }
+
+            currentTarget = nextTarget;
+        }
+
+        game.spawnFloatingText(player.x, player.y, `CHAIN x${hitEnemies.length}!`, skill.color);
+        game.audio?.playLightning?.();
+    }
+
+    executeNovaBarrier(game: any, skill: any): void {
+        const player = game.player;
+        const duration = skill.duration || 3;
+        const baseDamage = skill.damage || 50;
+
+        player.isInvulnerable = true;
+        game.spawnFloatingText(player.x, player.y, "NOVA BARRIER!", skill.color);
+
+        let storedDamage = 0;
+
+        this.activeEffects.push({
+            type: 'NOVA_BARRIER',
+            x: player.x,
+            y: player.y,
+            radius: 80,
+            timer: duration,
+            color: skill.color,
+            storedDamage: 0,
+            update: (dt: number, g: any) => {
+                const self: any = this.activeEffects.find(e => e.type === 'NOVA_BARRIER');
+                if (!self) return;
+
+                // Follow player
+                self.x = g.player.x;
+                self.y = g.player.y;
+
+                // Track would-be damage (simulated)
+                storedDamage += dt * 10; // Passive accumulation
+
+                // Visual pulse
+                if (Math.random() < 0.3) {
+                    g.spawnParticles(g.player.x, g.player.y, 1, skill.color);
+                }
+            },
+            onExpire: (g: any) => {
+                g.player.isInvulnerable = false;
+
+                // EXPLOSION!
+                const explosionDamage = baseDamage + storedDamage;
+                const explosionRadius = skill.radius || 250;
+
+                g.addScreenShake(0.5, 12);
+                g.spawnParticles(g.player.x, g.player.y, 40, skill.color);
+
+                g.enemies.forEach((e: any) => {
+                    if (e.markedForDeletion) return;
+                    const dist = Math.hypot(e.x - g.player.x, e.y - g.player.y);
+                    if (dist < explosionRadius) {
+                        e.takeDamage(explosionDamage, 'nova');
+                    }
+                });
+
+                g.spawnFloatingText(g.player.x, g.player.y, `NOVA BURST! ${Math.round(explosionDamage)}`, '#ffff00');
+            }
         });
     }
 }

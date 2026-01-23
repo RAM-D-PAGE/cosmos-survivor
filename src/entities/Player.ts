@@ -145,6 +145,12 @@ export class Player {
     }
 
     update(dt: number): void {
+        // NaN protection for player stats
+        if (!Number.isFinite(this.hp)) this.hp = this.maxHp || 100;
+        if (!Number.isFinite(this.maxHp)) this.maxHp = 100;
+        if (!Number.isFinite(this.energy)) this.energy = this.maxEnergy || 100;
+        if (!Number.isFinite(this.maxEnergy)) this.maxEnergy = 100;
+
         if (this.energy < this.maxEnergy) {
             this.energy += this.energyRegen * dt;
             if (this.energy > this.maxEnergy) this.energy = this.maxEnergy;
